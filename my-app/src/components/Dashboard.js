@@ -17,11 +17,14 @@ const Dashboard = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [checkInTime, setCheckInTime] = useState(null);
+  const [checkOutTime, setCheckOutTime] = useState(null);
   const [totalHours, setTotalHours] = useState(0);
+  const [todayAttendance, setTodayAttendance] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [stats, setStats] = useState({
     attendanceRate: 98,
     completedTasks: 12,
@@ -50,7 +53,7 @@ const Dashboard = () => {
     setSidebarOpen(false);
   }, [location]);
 
-  // Fetch user info from the backend
+  // Fetch user info and attendance data from the backend
   useEffect(() => {
     const fetchUserInfo = async () => {
       try {
@@ -61,6 +64,7 @@ const Dashboard = () => {
           return;
         }
 
+        // Fetch user data
         const response = await fetch('http://localhost:8080/api/dashboard', {
           method: 'GET',
           headers: {
@@ -84,10 +88,68 @@ const Dashboard = () => {
         const data = await response.json();
         setUser(data);
         
-        // Check if user has an active session
-        if (data.activeSession) {
-          setIsCheckedIn(true);
-          setCheckInTime(new Date(data.activeSession.startTime));
+        // Fetch today's attendance status
+        const todayDate = new Date().toISOString().split('T')[0];
+        const attendanceResponse = await fetch(`http://localhost:8080/api/attendance/today`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (attendanceResponse.ok) {
+          const attendanceData = await attendanceResponse.json();
+          setTodayAttendance(attendanceData);
+          
+          // If user has checked in today
+          if (attendanceData && attendanceData.checkInTime) {
+            setIsCheckedIn(true);
+            setCheckInTime(new Date(attendanceData.checkInTime));
+            
+            // If user has also checked out
+            if (attendanceData.checkOutTime) {
+              setIsCheckedIn(false);
+              setCheckOutTime(new Date(attendanceData.checkOutTime));
+              
+              // Calculate hours worked
+              const checkIn = new Date(attendanceData.checkInTime);
+              const checkOut = new Date(attendanceData.checkOutTime);
+              const hours = (checkOut - checkIn) / (1000 * 60 * 60);
+              setTotalHours(hours);
+            } else {
+              // User is still checked in, calculate ongoing hours
+              const now = new Date();
+              const checkIn = new Date(attendanceData.checkInTime);
+              const hours = (now - checkIn) / (1000 * 60 * 60);
+              setTotalHours(hours);
+            }
+          }
+        }
+        
+        // Fetch attendance history
+        const historyResponse = await fetch(`http://localhost:8080/api/attendance/history`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json();
+          setAttendanceHistory(historyData);
+          
+          // Update attendance rate in stats if we have history data
+          if (historyData && historyData.length > 0) {
+            const presentDays = historyData.filter(entry => entry.checkInTime).length;
+            const totalWorkingDays = 21; // This could be calculated more accurately
+            const rate = Math.round((presentDays / totalWorkingDays) * 100);
+            setStats(prevStats => ({
+              ...prevStats,
+              attendanceRate: rate
+            }));
+          }
         }
         
       } catch (error) {
@@ -109,35 +171,90 @@ const Dashboard = () => {
         return;
       }
 
-      const endpoint = isCheckedIn ? 'checkout' : 'checkin';
-      const response = await fetch(`http://localhost:8080/api/${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          timestamp: new Date().toISOString()
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to ${isCheckedIn ? 'check out' : 'check in'}`);
-      }
-
       if (!isCheckedIn) {
-        setCheckInTime(new Date());
+        // Handle check-in
+        const checkInResponse = await fetch(`http://localhost:8080/api/attendance/checkin`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            checkInTime: new Date().toISOString()
+          })
+        });
+
+        if (!checkInResponse.ok) {
+          throw new Error('Failed to check in');
+        }
+
+        const checkInData = await checkInResponse.json();
+        
+        // Update state with check-in information
         setIsCheckedIn(true);
+        setCheckInTime(new Date());
+        setTodayAttendance(checkInData);
+        
+        // Show success notification
+        alert('Successfully checked in!');
       } else {
+        // Handle check-out
+        const checkOutResponse = await fetch(`http://localhost:8080/api/attendance/checkout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            attendanceId: todayAttendance.id, // Send the ID of today's attendance record
+            checkOutTime: new Date().toISOString()
+          })
+        });
+
+        if (!checkOutResponse.ok) {
+          throw new Error('Failed to check out');
+        }
+
+        const checkOutData = await checkOutResponse.json();
+        
+        // Update state with check-out information
         const endTime = new Date();
-        const hours = (endTime - checkInTime) / (1000 * 60 * 60);
-        setTotalHours(prevHours => prevHours + hours);
+        setCheckOutTime(endTime);
         setIsCheckedIn(false);
+        setTodayAttendance(checkOutData);
+        
+        // Calculate and update total hours
+        const hours = (endTime - checkInTime) / (1000 * 60 * 60);
+        setTotalHours(hours);
+        
+        // Show success notification
+        alert('Successfully checked out!');
+        
+        // Refresh attendance history
+        const historyResponse = await fetch(`http://localhost:8080/api/attendance/history`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json();
+          setAttendanceHistory(historyData);
+        }
       }
     } catch (error) {
       console.error(`Error during ${isCheckedIn ? 'checkout' : 'checkin'}:`, error);
       setError(`Unable to ${isCheckedIn ? 'check out' : 'check in'} at this time`);
+      alert(`Error: ${error.message}`);
     }
+  };
+
+  // Format time for display
+  const formatTime = (date) => {
+    if (!date) return '--:--';
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   // Update the current time every second
@@ -281,7 +398,7 @@ const Dashboard = () => {
         {/* Welcome Section */}
         <section className="welcome-section">
           <div className="welcome-text">
-          <h1>Welcome back, {user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'User'}!</h1>
+            <h1>Welcome back, {user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'User'}!</h1>
             <p>Let's make today productive and amazing.</p>
           </div>
           
@@ -293,12 +410,22 @@ const Dashboard = () => {
               {isCheckedIn ? 'Check Out' : 'Check In'}
             </button>
             
-            {isCheckedIn && (
-              <div className="check-in-info">
-                <p>Checked in: {checkInTime?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                <p>Duration: {totalHours.toFixed(2)} hours</p>
-              </div>
-            )}
+            <div className="check-in-info">
+              {isCheckedIn ? (
+                <>
+                  <p>Checked in: {formatTime(checkInTime)}</p>
+                  <p>Duration: {totalHours.toFixed(2)} hours</p>
+                </>
+              ) : checkInTime && checkOutTime ? (
+                <>
+                  <p>Today's Record:</p>
+                  <p>In: {formatTime(checkInTime)} | Out: {formatTime(checkOutTime)}</p>
+                  <p>Total: {totalHours.toFixed(2)} hours</p>
+                </>
+              ) : (
+                <p>Not checked in today</p>
+              )}
+            </div>
           </div>
         </section>
 
@@ -306,7 +433,7 @@ const Dashboard = () => {
         <section className="stats-section">
           <div className="section-header">
             <h2>Quick Stats</h2>
-            <button>View Reports</button>
+            <button onClick={() => navigate('/attendance')}>View Reports</button>
           </div>
           
           <div className="stats-grid">
@@ -335,8 +462,6 @@ const Dashboard = () => {
             </div>
           </div>
         </section>
-
-       
 
         {/* Announcements */}
         <section className="announcements-section">
@@ -372,8 +497,8 @@ const Dashboard = () => {
           </div>
           
           <div className="profile-details" style={{ textAlign: 'center' }}>
-          <h3>{user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'User'}</h3>
-          <p>{user.position || 'Employee'}</p>
+            <h3>{user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'User'}</h3>
+            <p>{user.position || 'Employee'}</p>
             <p>{user.email || 'user@example.com'}</p>
             <p>ID: {user.employeeId || 'EMP001'}</p>
           </div>
