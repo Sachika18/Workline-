@@ -11,6 +11,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @NoArgsConstructor
 @AllArgsConstructor
 @Document(collection = "users")
+
 public class User {
     @Id
     private String id;
@@ -32,5 +33,7 @@ public class User {
         this.email = email;
         this.password = password;
         this.position = position;
+
+
     }
 }

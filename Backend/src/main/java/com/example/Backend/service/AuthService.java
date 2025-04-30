@@ -6,3 +6,8 @@ public interface AuthService {
     User register(User user);
     User authenticate(String email, String password);
 }
+
+
+
+
+

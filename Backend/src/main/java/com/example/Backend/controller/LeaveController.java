@@ -112,6 +112,23 @@ public class LeaveController {
                     .body(Map.of("error", "Failed to apply for leave: " + e.getMessage()));
         }
     }
+    @GetMapping("/history")
+    public ResponseEntity<?> getLeaveHistory(@RequestHeader("Authorization") String authHeader) {
+        try {
+            // Extract token from Authorization header
+            String token = authHeader.substring(7); // Remove "Bearer " prefix
+
+            // Get user ID from token
+            String userId = jwtTokenUtil.getUserIdFromToken(token);
+
+            // Get leave history
+            List<Leave> leaveList = leaveService.getUserLeaves(userId);
+
+            return ResponseEntity.ok(leaveList);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to fetch leave history: " + e.getMessage()));
+        }}
 
     @GetMapping("/user")
     public ResponseEntity<?> getUserLeaves(@RequestHeader("Authorization") String authHeader) {
