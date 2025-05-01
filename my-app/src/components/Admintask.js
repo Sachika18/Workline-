@@ -28,26 +28,17 @@ const AdminTaskPage = () => {
       let endpoint = '';
       
       try {
-        // First try the admin-specific endpoint
-        endpoint = '/tasks/admin';
+        // Try the my-tasks endpoint first since it works
+        endpoint = '/tasks/my-tasks';
         console.log('Trying endpoint:', endpoint);
         tasksResponse = await fetchApi.get(endpoint);
-      } catch (adminErr) {
-        console.log('Admin endpoint failed, trying my-tasks endpoint');
+      } catch (myTasksErr) {
+        console.log('my-tasks endpoint failed, trying base endpoint');
         
-        try {
-          // Then try the my-tasks endpoint
-          endpoint = '/tasks/my-tasks';
-          console.log('Trying endpoint:', endpoint);
-          tasksResponse = await fetchApi.get(endpoint);
-        } catch (myTasksErr) {
-          console.log('my-tasks endpoint failed, trying base endpoint');
-          
-          // Finally try the base endpoint
-          endpoint = '/tasks';
-          console.log('Trying endpoint:', endpoint);
-          tasksResponse = await fetchApi.get(endpoint);
-        }
+        // Then try the base endpoint
+        endpoint = '/tasks';
+        console.log('Trying endpoint:', endpoint);
+        tasksResponse = await fetchApi.get(endpoint);
       }
       
       console.log(`Tasks refresh response from ${endpoint}:`, tasksResponse);
@@ -76,8 +67,6 @@ const AdminTaskPage = () => {
       setLoading(true);
       console.log('Starting API calls...');
       
-      let usersLoaded = false;
-      let tasksLoaded = false;
       let errorMessage = null;
       
       // Try to fetch user data
@@ -89,7 +78,6 @@ const AdminTaskPage = () => {
           // Use mock data instead of redirecting
           console.log('Using mock user data as fallback');
           setUsers(mockUsers);
-          usersLoaded = true;
         } else {
           // Try to fetch from dashboard first (for current user)
           try {
@@ -103,7 +91,6 @@ const AdminTaskPage = () => {
               
               if (Array.isArray(usersResponse) && usersResponse.length > 0) {
                 setUsers(usersResponse);
-                usersLoaded = true;
               } else {
                 // If users endpoint returns empty or invalid data, use current user + mock data
                 const currentUser = dashboardResponse;
@@ -117,7 +104,6 @@ const AdminTaskPage = () => {
                 } else {
                   setUsers(mockUsers);
                 }
-                usersLoaded = true;
               }
             } catch (usersErr) {
               console.error('Error fetching all users:', usersErr);
@@ -132,7 +118,6 @@ const AdminTaskPage = () => {
               } else {
                 setUsers(mockUsers);
               }
-              usersLoaded = true;
             }
           } catch (dashboardErr) {
             console.error('Error fetching dashboard data:', dashboardErr);
@@ -146,22 +131,18 @@ const AdminTaskPage = () => {
               if (dashboardErr.status === 401 || dashboardErr.status === 403) {
                 console.log('Authentication error. Using mock data as fallback.');
                 setUsers(mockUsers);
-                usersLoaded = true;
               } else {
                 // For other errors, try the users endpoint directly
                 try {
                   const usersResponse = await fetchApi.get('/users');
                   if (Array.isArray(usersResponse) && usersResponse.length > 0) {
                     setUsers(usersResponse);
-                    usersLoaded = true;
                   } else {
                     setUsers(mockUsers);
-                    usersLoaded = true;
                   }
                 } catch (finalUsersErr) {
                   console.error('Final attempt to fetch users failed:', finalUsersErr);
                   setUsers(mockUsers);
-                  usersLoaded = true;
                   errorMessage = 'Using demo mode due to server issues. Some features may be limited.';
                 }
               }
@@ -169,7 +150,6 @@ const AdminTaskPage = () => {
               // Network error or other issue
               console.log('Network error. Using mock data as fallback.');
               setUsers(mockUsers);
-              usersLoaded = true;
               errorMessage = 'Using demo mode due to connection issues. Some features may be limited.';
             }
           }
@@ -177,21 +157,18 @@ const AdminTaskPage = () => {
       } catch (error) {
         console.error('Unexpected error in user fetch logic:', error);
         setUsers(mockUsers);
-        usersLoaded = true;
         errorMessage = 'Using demo mode due to unexpected errors. Some features may be limited.';
       }
       
       // Try to fetch tasks data
       try {
         await fetchTasks();
-        tasksLoaded = true;
       } catch (taskErr) {
         console.error('Error in initial task fetch:', taskErr);
         
         // Use mock tasks data
         console.log('Using mock tasks data as fallback');
         setTasks(mockTasks);
-        tasksLoaded = true;
         
         if (!errorMessage) {
           errorMessage = 'Using demo task data due to server issues. Some features may be limited.';
@@ -209,7 +186,7 @@ const AdminTaskPage = () => {
     };
 
     fetchData();
-  }, []);
+  }, []);  // Note: fetchTasks is defined in the component, so it doesn't need to be a dependency
 
   // Handle form input changes
   const handleInputChange = (e) => {
