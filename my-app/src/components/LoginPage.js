@@ -1,6 +1,7 @@
 // src/components/LoginPage.js
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import axios from 'axios';
 import "./LoginPage.css";
 import illustration from "../assets/illustration.png";
 
@@ -23,24 +24,47 @@ const LoginPage = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
-
+    
+    const API_URL = 'http://localhost:8080/api/auth/login';
+    
     try {
-      const response = await fetch('http://localhost:8080/api/auth/login', {
+      console.log('Attempting to login with:', formData);
+      
+      // Test if the server is reachable first with OPTIONS request
+      try {
+        const testResponse = await fetch(API_URL, { 
+          method: 'OPTIONS',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        });
+        console.log('Server test response:', testResponse);
+      } catch (connectionError) {
+        console.error('Server connection test failed:', connectionError);
+        throw new Error('Cannot connect to the server. Please make sure the backend is running.');
+      }
+      
+      // Proceed with actual login
+      const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
         body: JSON.stringify(formData),
       });
-
+      
+      console.log('Login response status:', response.status);
+      
       if (!response.ok) {
-        const errorText = await response.text();
-        setError(errorText || 'Login failed. Please check your credentials.');
-        return;
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Login failed. Please check your credentials.');
       }
-
+      
       const data = await response.json();
-
+      console.log('Login response data:', data);
+      
       // Store the JWT token and user details in localStorage
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify({
@@ -50,7 +74,7 @@ const LoginPage = () => {
         email: data.email,
         position: data.position
       }));
-
+      
       // Redirect based on role
 if (data.position === 'Admin') {
   navigate('/admindash');
@@ -61,7 +85,12 @@ if (data.position === 'Admin') {
 }
 
     } catch (err) {
-      setError('Connection error. Please try again later.');
+      console.error('Login error details:', {
+        message: err.message,
+        name: err.name,
+        stack: err.stack
+      });
+      setError(err.message || 'Login failed. Please check your credentials.');
     }
   };
 

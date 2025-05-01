@@ -13,6 +13,7 @@ import Calendar from './components/Calendar';
 import Documents from './components/Documents';
 import EnhancedNotifications from './components/EnhancedNotifications';
 import AdminDash from './components/admindash';
+import AdminTaskPage from './components/Admintask';
   
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
         <Route path="/calendar" element={<Calendar />} />
         <Route path="/documents" element={<Documents />} />
         <Route path='admindash' element={<AdminDash />} />
+        <Route path='/admintask' element={<AdminTaskPage/>} />
         <Route path="/enhancednotifications" element={<EnhancedNotifications />} />
         <Route path="/" element={<Navigate to="/login" />} />
       </Routes>

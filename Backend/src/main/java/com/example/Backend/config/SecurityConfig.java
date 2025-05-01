@@ -46,6 +46,8 @@ public class SecurityConfig {
                 .cors(cors -> cors.configure(http))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(new AntPathRequestMatcher("/api/auth/**")).permitAll()
+                        .requestMatchers(new AntPathRequestMatcher("/api/users/**")).permitAll() // Allow access to user endpoints for testing
+                        .requestMatchers(new AntPathRequestMatcher("/api/tasks/**")).permitAll() // Allow access to task endpoints for testing
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

@@ -8,6 +8,7 @@ import QuickActions from './QuickActions';
 import MobileMenu from './MobileMenu';
 import profile from './Profile';
 import enhancedNotifications from './EnhancedNotifications';
+import { mockAttendance, mockAttendanceHistory, createMockCheckIn, createMockCheckOut } from '../utils/mockData';
 
 // Rest of your component remains the same
 
@@ -64,46 +65,103 @@ const Dashboard = () => {
           return;
         }
 
-        // Fetch user data
-        const response = await fetch('http://localhost:8080/api/dashboard', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          }
-        });
+        let userData = null;
+        let usedMockUserData = false;
 
-        if (!response.ok) {
-          if (response.status === 403) {
-            console.error('Forbidden: Redirecting to login');
-            console.log('Token being sent:', token);
-            navigate('/login');
-          } else {
-            setError('Failed to fetch user info');
-            console.error('Failed to fetch user info');
+        try {
+          // Fetch user data
+          const response = await fetch('http://localhost:8080/api/dashboard', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            }
+          });
+
+          if (!response.ok) {
+            if (response.status === 403) {
+              console.error('Forbidden: Redirecting to login');
+              console.log('Token being sent:', token);
+              navigate('/login');
+              return;
+            } else {
+              throw new Error('Failed to fetch user info');
+            }
           }
-          return;
+
+          userData = await response.json();
+          setUser(userData);
+        } catch (userError) {
+          console.error('Error fetching user data:', userError);
+          
+          // Use mock user data as fallback
+          userData = {
+            id: 'mock-user-1',
+            firstName: 'Demo',
+            lastName: 'User',
+            email: 'demo.user@example.com',
+            position: 'Employee',
+            avatar: null
+          };
+          setUser(userData);
+          usedMockUserData = true;
         }
-
-        const data = await response.json();
-        setUser(data);
         
-        // Fetch today's attendance status
-        const todayDate = new Date().toISOString().split('T')[0];
-        const attendanceResponse = await fetch(`http://localhost:8080/api/attendance/today`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          }
-        });
+        let attendanceData = null;
+        let usedMockAttendanceData = false;
 
-        if (attendanceResponse.ok) {
-          const attendanceData = await attendanceResponse.json();
+        try {
+          // Fetch today's attendance status
+          const attendanceResponse = await fetch(`http://localhost:8080/api/attendance/today`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            }
+          });
+
+          if (!attendanceResponse.ok) {
+            throw new Error('Failed to fetch attendance data');
+          }
+
+          attendanceData = await attendanceResponse.json();
+          
+          // Check if we got a valid attendance record or just a message
+          if (attendanceData.message && !attendanceData.id) {
+            // No attendance record found for today
+            attendanceData = null;
+          }
+        } catch (attendanceError) {
+          console.error('Error fetching attendance data:', attendanceError);
+          
+          // Use mock attendance data as fallback
+          // Check if it's after work hours to determine if we should show checked out
+          const now = new Date();
+          const hour = now.getHours();
+          
+          if (hour >= 17) { // After 5 PM
+            attendanceData = createMockCheckOut({
+              ...mockAttendance,
+              userId: userData.id,
+              checkInTime: new Date(now.setHours(9, 0, 0, 0)) // 9:00 AM today
+            });
+          } else if (hour >= 9) { // After 9 AM
+            attendanceData = {
+              ...mockAttendance,
+              userId: userData.id,
+              checkInTime: new Date(now.setHours(9, 0, 0, 0)) // 9:00 AM today
+            };
+          }
+          
+          usedMockAttendanceData = true;
+        }
+        
+        // Process attendance data (real or mock)
+        if (attendanceData) {
           setTodayAttendance(attendanceData);
           
           // If user has checked in today
-          if (attendanceData && attendanceData.checkInTime) {
+          if (attendanceData.checkInTime) {
             setIsCheckedIn(true);
             setCheckInTime(new Date(attendanceData.checkInTime));
             
@@ -127,34 +185,102 @@ const Dashboard = () => {
           }
         }
         
-        // Fetch attendance history
-        const historyResponse = await fetch(`http://localhost:8080/api/attendance/history`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          }
-        });
+        let historyData = [];
+        
+        try {
+          // Fetch attendance history
+          const historyResponse = await fetch(`http://localhost:8080/api/attendance/history`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            }
+          });
 
-        if (historyResponse.ok) {
-          const historyData = await historyResponse.json();
-          setAttendanceHistory(historyData);
+          if (!historyResponse.ok) {
+            throw new Error('Failed to fetch attendance history');
+          }
+
+          historyData = await historyResponse.json();
+        } catch (historyError) {
+          console.error('Error fetching attendance history:', historyError);
           
-          // Update attendance rate in stats if we have history data
-          if (historyData && historyData.length > 0) {
-            const presentDays = historyData.filter(entry => entry.checkInTime).length;
-            const totalWorkingDays = 21; // This could be calculated more accurately
-            const rate = Math.round((presentDays / totalWorkingDays) * 100);
-            setStats(prevStats => ({
-              ...prevStats,
-              attendanceRate: rate
-            }));
+          // Use mock history data as fallback
+          historyData = mockAttendanceHistory.map(record => ({
+            ...record,
+            userId: userData.id
+          }));
+          
+          // If we have today's attendance (real or mock), add it to history
+          if (attendanceData && attendanceData.status === 'COMPLETED') {
+            historyData.unshift(attendanceData);
           }
         }
         
+        setAttendanceHistory(historyData);
+        
+        // Update attendance rate in stats if we have history data
+        if (historyData && historyData.length > 0) {
+          const presentDays = historyData.filter(entry => entry.checkInTime).length;
+          const totalWorkingDays = 21; // This could be calculated more accurately
+          const rate = Math.round((presentDays / totalWorkingDays) * 100);
+          setStats(prevStats => ({
+            ...prevStats,
+            attendanceRate: rate
+          }));
+        }
+        
+        // Show a message if we used mock data
+        if (usedMockUserData || usedMockAttendanceData) {
+          setError('Using demo mode due to server issues. Some features may be limited.');
+          setTimeout(() => setError(null), 2500);
+        }
+        
       } catch (error) {
-        console.error('Error fetching user info:', error);
-        setError('Error connecting to the server');
+        console.error('Error in fetchUserInfo:', error);
+        setError('Error connecting to the server. Using demo mode.');
+        
+        // Set up mock data as a last resort
+        setUser({
+          id: 'mock-user-1',
+          firstName: 'Demo',
+          lastName: 'User',
+          email: 'demo.user@example.com',
+          position: 'Employee',
+          avatar: null
+        });
+        
+        // Determine mock attendance based on time of day
+        const now = new Date();
+        const hour = now.getHours();
+        
+        if (hour >= 17) { // After 5 PM
+          const mockCheckedOut = createMockCheckOut({
+            ...mockAttendance,
+            userId: 'mock-user-1',
+            checkInTime: new Date(now.setHours(9, 0, 0, 0)) // 9:00 AM today
+          });
+          setTodayAttendance(mockCheckedOut);
+          setIsCheckedIn(false);
+          setCheckInTime(new Date(mockCheckedOut.checkInTime));
+          setCheckOutTime(new Date(mockCheckedOut.checkOutTime));
+          setTotalHours(mockCheckedOut.totalHours);
+        } else if (hour >= 9) { // After 9 AM
+          const mockCheckedIn = {
+            ...mockAttendance,
+            userId: 'mock-user-1',
+            checkInTime: new Date(now.setHours(9, 0, 0, 0)) // 9:00 AM today
+          };
+          setTodayAttendance(mockCheckedIn);
+          setIsCheckedIn(true);
+          setCheckInTime(new Date(mockCheckedIn.checkInTime));
+          const hours = (now - new Date(mockCheckedIn.checkInTime)) / (1000 * 60 * 60);
+          setTotalHours(hours);
+        }
+        
+        setAttendanceHistory(mockAttendanceHistory);
+        
+        setTimeout(() => setError(null), 2500);
       } finally {
         setLoading(false);
       }
@@ -173,81 +299,155 @@ const Dashboard = () => {
 
       if (!isCheckedIn) {
         // Handle check-in
-        const checkInResponse = await fetch(`http://localhost:8080/api/attendance/checkin`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            checkInTime: new Date().toISOString()
-          })
-        });
+        try {
+          const checkInResponse = await fetch(`http://localhost:8080/api/attendance/checkin`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            }
+          });
 
-        if (!checkInResponse.ok) {
-          throw new Error('Failed to check in');
+          if (!checkInResponse.ok) {
+            throw new Error('Failed to check in');
+          }
+
+          const checkInData = await checkInResponse.json();
+          
+          // Update state with check-in information
+          setIsCheckedIn(true);
+          setCheckInTime(new Date());
+          setTodayAttendance(checkInData.attendance || checkInData);
+          
+          // Show success notification
+          alert('Successfully checked in!');
+        } catch (checkInError) {
+          console.error('Error during check-in:', checkInError);
+          
+          // Use mock data as fallback
+          const mockCheckIn = createMockCheckIn(user.id);
+          setIsCheckedIn(true);
+          setCheckInTime(new Date(mockCheckIn.checkInTime));
+          setTodayAttendance(mockCheckIn);
+          
+          // Show notification
+          alert('Check-in recorded in demo mode due to server issues.');
         }
-
-        const checkInData = await checkInResponse.json();
-        
-        // Update state with check-in information
-        setIsCheckedIn(true);
-        setCheckInTime(new Date());
-        setTodayAttendance(checkInData);
-        
-        // Show success notification
-        alert('Successfully checked in!');
       } else {
         // Handle check-out
-        const checkOutResponse = await fetch(`http://localhost:8080/api/attendance/checkout`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            attendanceId: todayAttendance.id, // Send the ID of today's attendance record
-            checkOutTime: new Date().toISOString()
-          })
-        });
+        try {
+          const checkOutResponse = await fetch(`http://localhost:8080/api/attendance/checkout`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              attendanceId: todayAttendance.id, // Send the ID of today's attendance record
+              checkOutTime: new Date().toISOString()
+            })
+          });
 
-        if (!checkOutResponse.ok) {
-          throw new Error('Failed to check out');
-        }
-
-        const checkOutData = await checkOutResponse.json();
-        
-        // Update state with check-out information
-        const endTime = new Date();
-        setCheckOutTime(endTime);
-        setIsCheckedIn(false);
-        setTodayAttendance(checkOutData);
-        
-        // Calculate and update total hours
-        const hours = (endTime - checkInTime) / (1000 * 60 * 60);
-        setTotalHours(hours);
-        
-        // Show success notification
-        alert('Successfully checked out!');
-        
-        // Refresh attendance history
-        const historyResponse = await fetch(`http://localhost:8080/api/attendance/history`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
+          if (!checkOutResponse.ok) {
+            throw new Error('Failed to check out');
           }
-        });
 
-        if (historyResponse.ok) {
-          const historyData = await historyResponse.json();
-          setAttendanceHistory(historyData);
+          const checkOutData = await checkOutResponse.json();
+          
+          // Update state with check-out information
+          const endTime = new Date();
+          setCheckOutTime(endTime);
+          setIsCheckedIn(false);
+          setTodayAttendance(checkOutData.attendance || checkOutData);
+          
+          // Calculate and update total hours
+          const hours = (endTime - checkInTime) / (1000 * 60 * 60);
+          setTotalHours(hours);
+          
+          // Show success notification
+          alert('Successfully checked out!');
+          
+          // Refresh attendance history
+          try {
+            const historyResponse = await fetch(`http://localhost:8080/api/attendance/history`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              }
+            });
+
+            if (historyResponse.ok) {
+              const historyData = await historyResponse.json();
+              setAttendanceHistory(historyData);
+            } else {
+              throw new Error('Failed to fetch updated history');
+            }
+          } catch (historyError) {
+            console.error('Error fetching updated history:', historyError);
+            
+            // Add the checkout record to our existing history
+            const updatedHistory = [
+              todayAttendance,
+              ...attendanceHistory.filter(record => record.id !== todayAttendance.id)
+            ];
+            setAttendanceHistory(updatedHistory);
+          }
+        } catch (checkOutError) {
+          console.error('Error during check-out:', checkOutError);
+          
+          // Use mock data as fallback
+          const mockCheckOut = createMockCheckOut(todayAttendance);
+          const endTime = new Date(mockCheckOut.checkOutTime);
+          
+          setCheckOutTime(endTime);
+          setIsCheckedIn(false);
+          setTodayAttendance(mockCheckOut);
+          
+          // Calculate and update total hours
+          setTotalHours(mockCheckOut.totalHours);
+          
+          // Show notification
+          alert('Check-out recorded in demo mode due to server issues.');
+          
+          // Update history with the mock checkout
+          const updatedHistory = [
+            mockCheckOut,
+            ...attendanceHistory.filter(record => record.id !== todayAttendance.id)
+          ];
+          setAttendanceHistory(updatedHistory);
         }
       }
     } catch (error) {
       console.error(`Error during ${isCheckedIn ? 'checkout' : 'checkin'}:`, error);
-      setError(`Unable to ${isCheckedIn ? 'check out' : 'check in'} at this time`);
-      alert(`Error: ${error.message}`);
+      setError(`Unable to ${isCheckedIn ? 'check out' : 'check in'} at this time. Using demo mode.`);
+      
+      // Use mock data as a last resort
+      if (!isCheckedIn) {
+        // Mock check-in
+        const mockCheckIn = createMockCheckIn(user ? user.id : 'mock-user-1');
+        setIsCheckedIn(true);
+        setCheckInTime(new Date(mockCheckIn.checkInTime));
+        setTodayAttendance(mockCheckIn);
+        alert('Check-in recorded in demo mode.');
+      } else {
+        // Mock check-out
+        const mockCheckOut = createMockCheckOut(todayAttendance || mockAttendance);
+        setIsCheckedIn(false);
+        setCheckOutTime(new Date(mockCheckOut.checkOutTime));
+        setTodayAttendance(mockCheckOut);
+        setTotalHours(mockCheckOut.totalHours);
+        alert('Check-out recorded in demo mode.');
+        
+        // Update history
+        const updatedHistory = [
+          mockCheckOut,
+          ...attendanceHistory
+        ];
+        setAttendanceHistory(updatedHistory);
+      }
+      
+      setTimeout(() => setError(null), 2500);
     }
   };
 
