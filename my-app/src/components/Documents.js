@@ -6,6 +6,7 @@ import {
   LogOut, Filter, AlertCircle, Clock, Plus
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import Navbar from './Navbar';
 
 const Documents = () => {
   const [documents, setDocuments] = useState([
@@ -115,6 +116,8 @@ const Documents = () => {
   };
 
   return (
+    <div>
+    <Navbar />
     <div className="documents-container">
       {/* Sidebar */}
       <div className="sidebar">
@@ -184,34 +187,7 @@ const Documents = () => {
       {/* Main Content */}
       <div className="main-content">
         {/* Header */}
-        <header className="header">
-          <div className="time-container">
-            <h2 className="current-time">{formatCurrentTime(currentTime)}</h2>
-            <p className="current-date">{formatCurrentDate(currentTime)}</p>
-          </div>
-          
-          <div className="search-global">
-            <input type="text" placeholder="Search..." />
-            <div className="search-icon">🔍</div>
-          </div>
-          
-          <div className="profile-section">
-            <div className="notifications">
-              <div className="bell-icon">🔔</div>
-              <div className="notification-badge">3</div>
-            </div>
-            
-            <div className="profile">
-              <div className="profile-info">
-                <p className="profile-name">sachika yanamoto</p>
-                <p className="profile-role">UI Designer</p>
-              </div>
-              <div className="profile-avatar">
-                <span>SY</span>
-              </div>
-            </div>
-          </div>
-        </header>
+        
         
         {/* Documents Content */}
         <main className="documents-content">
@@ -425,6 +401,7 @@ const Documents = () => {
           <div className="toast-message">{toastMessage}</div>
         </div>
       )}
+    </div>
     </div>
   );
 };

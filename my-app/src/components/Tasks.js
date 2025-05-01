@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './Tasks.css';
+import Navbar from './Navbar';
 
 const Tasks = () => {
   const [tasks, setTasks] = useState([]);
@@ -28,7 +29,9 @@ const Tasks = () => {
     setTasks(updatedTasks);
   };
 
-  return (
+  return (  
+    <div>
+    <Navbar />
     <div className="tasks-container">
       <h2 className="section-title">Manage Tasks</h2>
       
@@ -81,6 +84,7 @@ const Tasks = () => {
           ))
         )}
       </div>
+    </div>
     </div>
   );
 };

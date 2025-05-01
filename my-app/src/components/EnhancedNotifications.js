@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Search, Bell, Settings, CheckCircle, Calendar, Mail, FileText, AlertTriangle, Clock, X, Filter, ArrowDown, Inbox, Archive, Trash2, PlusCircle, ChevronDown, Pin, MoreVertical, Home, User, ChevronLeft } from 'lucide-react';
 import './EnhancedNotifications.css';
+import Navbar from './Navbar';  
 export default function EnhancedNotifications() {
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -116,27 +117,10 @@ export default function EnhancedNotifications() {
   
 
   return (
+    <div>
+    <Navbar />
     <div className="w-full">
-      {/* Navigation Bar */}
-      <div className="w-full bg-green-800 p-2 flex items-center justify-between">
-        <div className="flex items-center">
-          <button className="p-2 text-white rounded-md hover:bg-green-700">
-            <ChevronLeft size={20} />
-          </button>
-          <div className="ml-2 text-white text-xl font-bold">HRSystem</div>
-        </div>
-        <div className="flex items-center space-x-4">
-          <button className="text-white hover:text-green-200">
-            <Home size={20} />
-          </button>
-          <button className="text-white hover:text-green-200">
-            <User size={20} />
-          </button>
-          <button className="text-white hover:text-green-200">
-            <Settings size={20} />
-          </button>
-        </div>
-      </div>
+      
 
       {/* Main Content */}
       <div className="enhanced-notifications-container w-full px-4 py-6">
@@ -325,6 +309,7 @@ export default function EnhancedNotifications() {
           View More
         </button>
       </div>
+    </div>
     </div>
   );
 }

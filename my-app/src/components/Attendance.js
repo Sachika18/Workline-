@@ -4,6 +4,7 @@ import AttendanceSummary from './AttendanceSummary';
 import { FiHome, FiUser, FiSettings, FiArrowLeft } from 'react-icons/fi';
 import './Dashboard.css';
 import axios from 'axios';
+import Navbar from './Navbar';
 
 const Attendance = () => {
   const navigate = useNavigate();
@@ -89,76 +90,10 @@ const Attendance = () => {
   };
 
   return (
+    <div>
+    <Navbar />
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Navbar */}
-      <div style={{
-        background: 'white',
-        padding: '1rem 2rem',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        boxShadow: 'var(--shadow-sm)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 10
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <button 
-            onClick={() => navigate(-1)}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              background: 'var(--primary)',
-              color: 'white',
-              border: 'none',
-              padding: '0.5rem',
-              borderRadius: 'var(--border-radius-md)',
-              cursor: 'pointer'
-            }}
-          >
-            <FiArrowLeft size={20} />
-          </button>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-            HRSystem
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-          <Link to="/dashboard" style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.5rem', 
-            color: 'var(--text-primary)',
-            textDecoration: 'none',
-            fontSize: '0.9rem'
-          }}>
-            <FiHome size={20} /> Home
-          </Link>
-          <button style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.5rem',
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-primary)',
-            cursor: 'pointer',
-            fontSize: '0.9rem'
-          }}>
-            <FiUser size={20} /> Profile
-          </button>
-          <button style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.5rem',
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-primary)',
-            cursor: 'pointer',
-            fontSize: '0.9rem'
-          }}>
-            <FiSettings size={20} /> Settings
-          </button>
-        </div>
-      </div>
+     
 
       {/* Main Content */}
       <div style={{ 
@@ -297,6 +232,8 @@ const Attendance = () => {
         }
       `}</style>
     </div>
+    </div>
+    
   );
 };
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Profile.css';
 import defaultAvatar from '../assets/avatar.png';
+import Navbar from './Navbar';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -203,6 +204,8 @@ const Profile = () => {
   }
 
   return (
+    <div>
+    <Navbar />
     <div className="profile-container">
       {submitStatus.show && (
         <div className={`status-message ${submitStatus.isError ? 'error' : 'success'}`}>
@@ -377,6 +380,7 @@ const Profile = () => {
           )}
         </form>
       </div>
+    </div>
     </div>
   );
 };
