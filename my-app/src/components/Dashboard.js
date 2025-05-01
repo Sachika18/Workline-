@@ -8,6 +8,7 @@ import QuickActions from './QuickActions';
 import MobileMenu from './MobileMenu';
 import profile from './Profile';
 import enhancedNotifications from './EnhancedNotifications';
+import DarkModeToggle from './DarkModeToggle';
 import { mockAttendance, mockAttendanceHistory, createMockCheckIn, createMockCheckOut } from '../utils/mockData';
 
 // Rest of your component remains the same
