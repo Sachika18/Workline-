@@ -129,7 +129,7 @@ const AttendancePage = () => {
     try {
       const token = getToken();
 
-      const response = await fetch('http://localhost:8080/api/leave/history', {
+      const response = await fetch('http://localhost:8080/api/leaves/history', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,

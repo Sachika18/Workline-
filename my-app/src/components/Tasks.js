@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { mockTasks } from '../utils/mockData';
 import './Tasks.css';
-import Navbar  from './Navbar';
+import Navbar from './Navbar';
+import TaskService from './services/TaskService';
 
 const TaskPage = () => {
   const [tasks, setTasks] = useState([]);
@@ -14,10 +15,14 @@ const TaskPage = () => {
     const fetchTasks = async () => {
       try {
         setLoading(true);
+        setError(null);
+        console.log('Tasks: Fetching tasks for logged-in user');
+        
         const token = localStorage.getItem('token');
+        const userEmail = localStorage.getItem('userEmail');
         
         if (!token) {
-          console.log('No authentication token found. Using mock data.');
+          console.log('Tasks: No authentication token found. Using mock data.');
           setTasks(mockTasks);
           setLoading(false);
           setError('Using demo mode. Some features may be limited.');
@@ -25,8 +30,24 @@ const TaskPage = () => {
           return;
         }
         
-        // Use the new endpoint that gets tasks for the current user
+        // First check localStorage for the most up-to-date task data
         try {
+          console.log('Tasks: Checking localStorage for tasks');
+          const localTasks = await TaskService.getMyTasks();
+          
+          if (Array.isArray(localTasks) && localTasks.length > 0) {
+            console.log('Tasks: Found tasks in TaskService:', localTasks);
+            setTasks(localTasks);
+            setLoading(false);
+            return;
+          }
+        } catch (localErr) {
+          console.error('Tasks: Error getting tasks from TaskService:', localErr);
+        }
+        
+        // Use the API endpoint that gets tasks for the current user
+        try {
+          console.log('Tasks: Fetching from my-tasks endpoint');
           const tasksResponse = await fetch('http://localhost:8080/api/tasks/my-tasks', {
             method: 'GET',
             headers: { 
@@ -40,19 +61,28 @@ const TaskPage = () => {
           }
           
           const tasksData = await tasksResponse.json();
+          console.log('Tasks: Received data from my-tasks endpoint:', tasksData);
           
-          if (Array.isArray(tasksData) && tasksData.length > 0) {
+          if (Array.isArray(tasksData)) {
+            // Save to localStorage for offline use
+            if (tasksData.length > 0) {
+              console.log('Tasks: Saving API tasks to localStorage');
+              localStorage.setItem('workline_tasks', JSON.stringify(tasksData));
+            }
+            
+            // Accept empty arrays as valid responses
             setTasks(tasksData);
             setLoading(false);
           } else {
-            // If the response is empty, try the fallback
-            throw new Error('Empty response from my-tasks endpoint');
+            // Only throw an error if the response is not an array
+            throw new Error('Invalid response format from my-tasks endpoint');
           }
         } catch (tasksErr) {
-          console.error('Error fetching tasks from my-tasks endpoint:', tasksErr);
+          console.error('Tasks: Error fetching tasks from my-tasks endpoint:', tasksErr);
           
           // Fallback: try to get user ID first, then fetch tasks
           try {
+            console.log('Tasks: Trying fallback method with user ID');
             // Try to get user ID from dashboard endpoint
             const userResponse = await fetch('http://localhost:8080/api/dashboard', {
               method: 'GET',
@@ -68,6 +98,7 @@ const TaskPage = () => {
             
             const userData = await userResponse.json();
             const userId = userData.id;
+            console.log('Tasks: Got user ID:', userId);
             
             if (!userId) {
               throw new Error('User ID is undefined');
@@ -87,18 +118,54 @@ const TaskPage = () => {
             }
             
             const userTasksData = await userTasksResponse.json();
+            console.log('Tasks: Got user tasks:', userTasksData);
             
             if (Array.isArray(userTasksData)) {
+              // Save to localStorage for offline use
+              if (userTasksData.length > 0) {
+                console.log('Tasks: Saving user tasks to localStorage');
+                localStorage.setItem('workline_tasks', JSON.stringify(userTasksData));
+              }
+              
               setTasks(userTasksData);
               setLoading(false);
             } else {
               throw new Error('Invalid response from user tasks endpoint');
             }
           } catch (fallbackErr) {
-            console.error('Error in fallback task fetching:', fallbackErr);
+            console.error('Tasks: Error in fallback task fetching:', fallbackErr);
+            
+            // Try to get tasks from localStorage as another fallback
+            try {
+              console.log('Tasks: Checking localStorage for tasks as fallback');
+              const tasksJson = localStorage.getItem('workline_tasks');
+              
+              if (tasksJson) {
+                const allTasks = JSON.parse(tasksJson);
+                console.log('Tasks: Found all tasks in localStorage:', allTasks);
+                
+                // Filter tasks for current user
+                const userTasks = allTasks.filter(task => 
+                  task.assignedTo === userEmail || 
+                  task.assignedToEmail === userEmail ||
+                  task.assignedToName === userEmail
+                );
+                
+                if (userTasks.length > 0) {
+                  console.log('Tasks: Filtered tasks for current user:', userTasks);
+                  setTasks(userTasks);
+                  setLoading(false);
+                  setError('Using locally stored tasks. Some data may be outdated.');
+                  setTimeout(() => setError(null), 2500);
+                  return;
+                }
+              }
+            } catch (localStorageErr) {
+              console.error('Tasks: Error getting tasks from localStorage:', localStorageErr);
+            }
             
             // Final fallback: use mock data
-            console.log('Using mock task data as fallback');
+            console.log('Tasks: Using mock task data as fallback');
             
             // Filter mock tasks to show only those assigned to mock-user-1
             // This simulates tasks assigned to the current user
@@ -113,10 +180,10 @@ const TaskPage = () => {
           }
         }
       } catch (err) {
-        console.error('Error fetching tasks:', err);
+        console.error('Tasks: Error fetching tasks:', err);
         
         // Ultimate fallback: use mock data
-        console.log('Using mock task data as final fallback');
+        console.log('Tasks: Using mock task data as final fallback');
         
         // Filter mock tasks to show only those assigned to mock-user-1
         const userMockTasks = mockTasks.filter(task => 
@@ -131,66 +198,159 @@ const TaskPage = () => {
     };
 
     fetchTasks();
+    
+    // Set up a periodic check for task status updates
+    const checkForUpdatesInterval = setInterval(() => {
+      console.log('Tasks: Checking for task status updates');
+      // Refresh tasks to ensure we have the latest status
+      fetchTasks();
+    }, 15000); // Check every 15 seconds
+    
+    return () => {
+      clearInterval(checkForUpdatesInterval);
+    };
   }, []);
 
   // Update task status
   const updateTaskStatus = async (taskId, newStatus) => {
     try {
+      console.log(`Tasks: Updating task ${taskId} status to ${newStatus}`);
+      setError(null);
+      
+      // Always update UI immediately for better user experience
+      updateLocalTaskStatus(taskId, newStatus);
+      
+      // Show initial feedback
+      setError(`Updating task status to ${newStatus.toLowerCase()}...`);
+      
       const token = localStorage.getItem('token');
       
       if (!token) {
-        // No token, just update the UI in demo mode
-        updateLocalTaskStatus(taskId, newStatus);
-        setError('Status updated in demo mode only.');
-        setTimeout(() => setError(null), 2000);
+        // No token, just update the UI and localStorage in demo mode
+        try {
+          await TaskService.updateTaskStatus(taskId, newStatus);
+          console.log('Tasks: Status updated in localStorage (demo mode)');
+          setError('Status updated in demo mode only.');
+          setTimeout(() => setError(null), 2000);
+        } catch (storageErr) {
+          console.error('Tasks: Error updating status in localStorage:', storageErr);
+          setError('Status updated in UI only. Could not save changes.');
+          setTimeout(() => setError(null), 2000);
+        }
         return;
       }
       
       try {
-        // Try to update via API
-        const response = await fetch(`http://localhost:8080/api/tasks/${taskId}/status`, {
-          method: 'PATCH',
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ status: newStatus })
-        });
+        // Use TaskService to update status (will try API first, then fallback to localStorage)
+        const updatedTask = await TaskService.updateTaskStatus(taskId, newStatus);
+        console.log('Tasks: Status updated successfully:', updatedTask);
         
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
+        // Make sure UI is in sync with the returned task
+        if (updatedTask && updatedTask.status) {
+          updateLocalTaskStatus(taskId, updatedTask.status);
         }
         
-        // Update local state on success
-        updateLocalTaskStatus(taskId, newStatus);
-      } catch (apiErr) {
-        console.error('Error updating task status via API:', apiErr);
+        // Show success message with offline indicator if needed
+        if (updatedTask && updatedTask._pendingSync) {
+          setError(`Task marked as ${newStatus.toLowerCase()} (offline mode - will sync later)`);
+        } else {
+          setError(`Task marked as ${newStatus.toLowerCase()}`);
+        }
+        setTimeout(() => setError(null), 3000);
         
-        // Even if API fails, update the UI for better user experience
-        updateLocalTaskStatus(taskId, newStatus);
-        setError('Status updated in demo mode due to server issues.');
+        // Refresh task list after a short delay to ensure consistency
+        setTimeout(() => {
+          console.log('Tasks: Refreshing task list after status update');
+          // We could add a refresh function here if needed
+        }, 500);
+      } catch (apiErr) {
+        console.error('Tasks: Error updating task status:', apiErr);
+        
+        // UI is already updated, just show a message about sync status
+        setError('Status updated locally. Changes will sync when connection is restored.');
         setTimeout(() => setError(null), 2000);
       }
     } catch (err) {
-      console.error('Unexpected error updating task status:', err);
+      console.error('Tasks: Unexpected error updating task status:', err);
       
-      // Still update the UI even if there's an error
-      updateLocalTaskStatus(taskId, newStatus);
+      // UI is already updated, just show a message about the error
       setError('Status updated locally. Server connection issues detected.');
       setTimeout(() => setError(null), 2000);
+      
+      // Try one more time to save to localStorage as a last resort
+      try {
+        const fallbackTask = {
+          id: taskId,
+          status: newStatus,
+          lastUpdated: new Date().toISOString()
+        };
+        
+        localStorage.setItem(`task_status_${taskId}`, JSON.stringify(fallbackTask));
+        console.log('Tasks: Saved status to localStorage as last resort');
+      } catch (finalErr) {
+        console.error('Tasks: Final error saving status:', finalErr);
+      }
     }
   };
   
   // Helper function to update task status in local state
   const updateLocalTaskStatus = (taskId, newStatus) => {
-    // Update task in tasks array
-    setTasks(tasks.map(task => 
-      task.id === taskId ? { ...task, status: newStatus } : task
-    ));
-    
-    // Update selected task if it's the one being modified
-    if (selectedTask && selectedTask.id === taskId) {
-      setSelectedTask({ ...selectedTask, status: newStatus });
+    try {
+      console.log(`Tasks: Updating local UI state for task ${taskId} to ${newStatus}`);
+      
+      // Check if the task exists in the current tasks array
+      const taskExists = tasks.some(task => 
+        task.id === taskId || 
+        (task._id && task._id === taskId) || 
+        (task.id && task.id.toString() === taskId.toString())
+      );
+      
+      if (taskExists) {
+        // Update task in tasks array
+        setTasks(tasks.map(task => {
+          // Match on id or _id
+          if (task.id === taskId || 
+              (task._id && task._id === taskId) || 
+              (task.id && task.id.toString() === taskId.toString())) {
+            return { 
+              ...task, 
+              status: newStatus,
+              lastUpdated: new Date().toISOString() 
+            };
+          }
+          return task;
+        }));
+      } else {
+        console.warn(`Tasks: Task ${taskId} not found in current state, cannot update UI`);
+        // We could add the task to the state here if needed
+      }
+      
+      // Update selected task if it's the one being modified
+      if (selectedTask && (
+          selectedTask.id === taskId || 
+          (selectedTask._id && selectedTask._id === taskId) ||
+          (selectedTask.id && selectedTask.id.toString() === taskId.toString())
+        )) {
+        setSelectedTask({ 
+          ...selectedTask, 
+          status: newStatus,
+          lastUpdated: new Date().toISOString() 
+        });
+      }
+      
+      // Also save to a separate localStorage item as a backup
+      try {
+        const statusBackup = {
+          id: taskId,
+          status: newStatus,
+          lastUpdated: new Date().toISOString()
+        };
+        localStorage.setItem(`task_status_${taskId}`, JSON.stringify(statusBackup));
+      } catch (storageErr) {
+        console.error('Tasks: Error saving status backup to localStorage:', storageErr);
+      }
+    } catch (err) {
+      console.error('Tasks: Error updating local task status:', err);
     }
   };
 
@@ -205,14 +365,18 @@ const TaskPage = () => {
         case 'PENDING':
           return 'pending';
         case 'ONGOING':
+        case 'OPEN':
           return 'ongoing';
         case 'COMPLETED':
+        case 'COMPLETE':
+        case 'DONE':
           return 'completed';
         default:
+          console.log(`Unknown status value: ${status}, defaulting to pending`);
           return 'pending';
       }
     } catch (error) {
-      console.error('Error getting status color:', error);
+      console.error('Error getting status color:', error, status);
       return 'pending';
     }
   };
@@ -247,7 +411,57 @@ const TaskPage = () => {
     <div>
       <Navbar />
     <div className="task-container">
-      <h1>My Tasks</h1>
+      <div className="tasks-header">
+        <h1>My Tasks</h1>
+        <button 
+          className="refresh-button"
+          onClick={() => {
+            console.log('Tasks: Manual refresh requested');
+            // Use the existing fetchTasks function defined in useEffect
+            const fetchTasks = async () => {
+              try {
+                setLoading(true);
+                setError(null);
+                console.log('Tasks: Fetching tasks for logged-in user');
+                
+                const token = localStorage.getItem('token');
+                const userEmail = localStorage.getItem('userEmail');
+                
+                // First check localStorage for the most up-to-date task data
+                try {
+                  console.log('Tasks: Checking localStorage for tasks');
+                  const localTasks = await TaskService.getMyTasks();
+                  
+                  if (Array.isArray(localTasks) && localTasks.length > 0) {
+                    console.log('Tasks: Found tasks in TaskService:', localTasks);
+                    setTasks(localTasks);
+                    setLoading(false);
+                    setError('Tasks refreshed successfully');
+                    setTimeout(() => setError(null), 2000);
+                    return;
+                  }
+                } catch (localErr) {
+                  console.error('Tasks: Error getting tasks from TaskService:', localErr);
+                }
+                
+                // Fallback to mock data if needed
+                setTasks(mockTasks);
+                setLoading(false);
+                setError('Using demo mode. Tasks refreshed with mock data.');
+                setTimeout(() => setError(null), 2000);
+              } catch (err) {
+                console.error('Tasks: Error refreshing tasks:', err);
+                setError('Failed to refresh tasks. Please try again.');
+                setLoading(false);
+              }
+            };
+            
+            fetchTasks();
+          }}
+        >
+          Refresh
+        </button>
+      </div>
       
       {tasks.length === 0 ? (
         <p className="no-tasks">You have no assigned tasks at the moment.</p>
@@ -288,6 +502,7 @@ const TaskPage = () => {
                     <span className="task-date">Due: {formattedDate}</span>
                     <span className={`task-status ${getStatusColor(task.status)}`}>
                       {formatStatus(task.status)}
+                      {task._pendingSync && <span className="sync-pending"> (Pending Sync)</span>}
                     </span>
                   </div>
                 </div>
@@ -339,6 +554,7 @@ const TaskPage = () => {
                       <h2>{title}</h2>
                       <span className={`task-status ${getStatusColor(status)}`}>
                         {formatStatus(status)}
+                        {selectedTask._pendingSync && <span className="sync-pending"> (Pending Sync)</span>}
                       </span>
                     </div>
                     

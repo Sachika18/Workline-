@@ -1,20 +1,26 @@
 package com.example.Backend.controller;
 
-import com.example.Backend.config.JwtTokenUtil;
-import com.example.Backend.model.Task;
-import com.example.Backend.model.User;
-import com.example.Backend.service.TaskService;
-import com.example.Backend.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
-
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.example.Backend.config.JwtTokenUtil;
+import com.example.Backend.model.Task;
+import com.example.Backend.service.TaskService;
+import com.example.Backend.service.UserService;
 
 @RestController
 @RequestMapping("/api/tasks")
@@ -98,15 +104,31 @@ public class TaskController {
     }
     
     // Update task status
-    @PatchMapping("/{id}/status")
+    @PutMapping("/{id}/status")
     public ResponseEntity<Task> updateTaskStatus(
             @PathVariable String id,
             @RequestBody Map<String, String> statusUpdate) {
-        
-        Task.TaskStatus newStatus = Task.TaskStatus.valueOf(statusUpdate.get("status").toUpperCase());
-        Task updatedTask = taskService.updateTaskStatus(id, newStatus);
-        
-        return new ResponseEntity<>(updatedTask, HttpStatus.OK);
+        try {
+            System.out.println("TaskController: Updating task status for ID: " + id);
+            System.out.println("TaskController: Received status update: " + statusUpdate);
+            
+            String statusStr = statusUpdate.get("status");
+            if (statusStr == null) {
+                return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            }
+            
+            Task.TaskStatus newStatus = Task.TaskStatus.valueOf(statusStr.toUpperCase());
+            Task updatedTask = taskService.updateTaskStatus(id, newStatus);
+            
+            System.out.println("TaskController: Task status updated successfully: " + updatedTask);
+            return new ResponseEntity<>(updatedTask, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            System.out.println("TaskController: Invalid status value: " + e.getMessage());
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            System.out.println("TaskController: Error updating task status: " + e.getMessage());
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
     
     // Delete a task
