@@ -1,5 +1,5 @@
-package com.example.Backend.service.impl;
 
+package com.example.Backend.service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 
 import com.example.Backend.model.Attendance;
 import com.example.Backend.repository.AttendanceRepository;
-import com.example.Backend.service.AttendanceService;
 
 @Service
 public class AttendanceServiceImpl implements AttendanceService {
@@ -50,12 +49,24 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     @Override
     public Optional<Attendance> getTodayAttendance(String userId) {
-        // Get today's date range (from start to end of day)
-        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
-        LocalDateTime endOfDay = LocalDate.now().atTime(LocalTime.MAX);
+        try {
+            // Get today's date range (from start to end of day)
+            LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+            LocalDateTime endOfDay = LocalDate.now().atTime(LocalTime.MAX);
 
-        // Find attendance record for today
-        return attendanceRepository.findByUserIdAndDateBetween(userId, startOfDay, endOfDay);
+            // Find attendance record for today using a more direct approach
+            List<Attendance> todayAttendances = attendanceRepository.findByUserIdAndDateBetweenOrderByDateDesc(userId, startOfDay, endOfDay);
+            
+            if (!todayAttendances.isEmpty()) {
+                return Optional.of(todayAttendances.get(0));
+            } else {
+                return Optional.empty();
+            }
+        } catch (Exception e) {
+            System.err.println("Error in getTodayAttendance: " + e.getMessage());
+            e.printStackTrace();
+            return Optional.empty();
+        }
     }
 
     @Override

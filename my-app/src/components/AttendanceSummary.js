@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FiCalendar, FiClock, FiCheck, FiBarChart2 } from 'react-icons/fi';
-import AttendanceSummary from './AttendanceSummary';
+// Removed circular import: import AttendanceSummary from './AttendanceSummary';
 
-const AttendancePage = () => {
+const AttendanceSummary = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [todayAttendance, setTodayAttendance] = useState(null);
@@ -80,15 +80,24 @@ const AttendancePage = () => {
     // Initial fetch
     fetchTodayAttendance();
     
-    // Refresh data every minute if checked in
-    const timer = setInterval(() => {
-      if (isCheckedIn) {
-        fetchTodayAttendance();
-      }
-    }, 60000); // Once per minute instead of continuous polling
+    let timer = null;
     
-    return () => clearInterval(timer);
-  }, [fetchTodayAttendance, isCheckedIn]);
+    // Only set up polling if user is checked in
+    if (isCheckedIn) {
+      console.log('Setting up attendance polling interval - checked in');
+      timer = setInterval(() => {
+        console.log('Polling for attendance update');
+        fetchTodayAttendance();
+      }, 300000); // Every 5 minutes instead of every minute to reduce server load
+    }
+    
+    return () => {
+      if (timer) {
+        console.log('Cleaning up attendance polling interval');
+        clearInterval(timer);
+      }
+    };
+  }, [fetchTodayAttendance, isCheckedIn]); // Keep isCheckedIn in dependencies to restart timer when status changes
 
   // Fetch attendance history
   const fetchAttendanceHistory = useCallback(async () => {
@@ -545,19 +554,25 @@ const AttendancePage = () => {
           </table>
         </div>
         
-        {/* Attendance Summary Component */}
-        <AttendanceSummary 
-          attendanceHistory={attendanceHistory}
-          todayAttendance={todayAttendance}
-          userLeaves={userLeaves}
-          checkInTime={checkInTime}
-          checkOutTime={checkOutTime}
-          totalHours={totalHours}
-          isCheckedIn={isCheckedIn}
-        />
+        {/* Attendance Summary Stats - Inline instead of recursive component */}
+        <div className="attendance-summary-stats">
+          <h3>Summary</h3>
+          <div className="stats-grid">
+            <div className="stat-item">
+              <span className="stat-label">Total Days</span>
+              <span className="stat-value">{attendanceHistory.length}</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">Total Hours</span>
+              <span className="stat-value">
+                {attendanceHistory.reduce((sum, record) => sum + (record.totalHours || 0), 0).toFixed(2)}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-export default AttendancePage;
+export default AttendanceSummary;

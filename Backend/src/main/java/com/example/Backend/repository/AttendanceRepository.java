@@ -1,20 +1,23 @@
 package com.example.Backend.repository;
 
-import com.example.Backend.model.Attendance;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
+
+import com.example.Backend.model.Attendance;
+
 public interface AttendanceRepository extends MongoRepository<Attendance, String> {
 
     // Find attendance record between two dates (used for today's attendance)
+    @Query("{ 'userId': ?0, 'date': { $gte: ?1, $lte: ?2 } }")
     Optional<Attendance> findByUserIdAndDateBetween(String userId, LocalDateTime startDate, LocalDateTime endDate);
 
     // Find attendance records by user and date range
+    @Query(value = "{ 'userId': ?0, 'date': { $gte: ?1, $lte: ?2 } }", sort = "{ 'date': -1 }")
     List<Attendance> findByUserIdAndDateBetweenOrderByDateDesc(String userId, LocalDateTime startDate, LocalDateTime endDate);
 
     // Find most recent attendance records for a user

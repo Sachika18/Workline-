@@ -99,18 +99,23 @@ public class AttendanceController {
 
             // Get user ID from token
             String userId = jwtTokenUtil.getUserIdFromToken(token);
+            
+            System.out.println("Getting attendance for user ID: " + userId);
 
             // Get today's attendance record
             Optional<Attendance> attendance = attendanceService.getTodayAttendance(userId);
 
             if (attendance.isPresent()) {
+                System.out.println("Found attendance record: " + attendance.get().getId());
                 return ResponseEntity.ok(attendance.get());
             } else {
+                System.out.println("No attendance record found for today");
                 return ResponseEntity.ok(Map.of("message", "No attendance record found for today"));
             }
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Failed to fetch attendance: " + e.getMessage()));
+            System.err.println("Error in getTodayAttendance controller: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.ok(Map.of("message", "No attendance record found for today"));
         }
     }
 

@@ -1,12 +1,14 @@
 package com.example.Backend.model;
 
+import java.time.LocalDateTime;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
-
-import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -22,6 +24,8 @@ public class Attendance {
     private LocalDateTime checkOutTime;
     private Double totalHours;
     private String status; // CHECKED_IN, COMPLETED, etc.
+    
+    @Indexed
     private LocalDateTime date;
 
     // Constructor for check-in
