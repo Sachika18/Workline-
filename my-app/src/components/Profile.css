@@ -1,3 +1,32 @@
+.admin-navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background-color: #4318FF;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.admin-nav-logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.admin-nav-button {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.admin-nav-button:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
 .profile-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -20,6 +49,29 @@
   margin-bottom: 3rem;
   padding-bottom: 1.5rem;
   border-bottom: 1px solid #f0f2f8;
+}
+
+.profile-title {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.back-button {
+  background-color: transparent;
+  color: #4318FF;
+  border: 1px solid #4318FF;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 0.9rem;
+  align-self: flex-start;
+}
+
+.back-button:hover {
+  background-color: #4318FF;
+  color: white;
 }
 
 .profile-header h1 {

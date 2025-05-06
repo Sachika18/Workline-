@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import './AdminDash.css'; // Make sure to create this CSS file
 import defaultAvatar from '../assets/avatar.png';
 import MobileMenu from './MobileMenu';
+import AnnouncementForm from './AnnouncementForm';
 
 const AdminDash = () => {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ const AdminDash = () => {
   const [error, setError] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [employees, setEmployees] = useState([]);
+  const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
   const [departmentStats, setDepartmentStats] = useState({
     hr: { headcount: 12, attendance: 96, tasks: 24 },
     tech: { headcount: 38, attendance: 94, tasks: 56 },
@@ -119,20 +121,34 @@ const AdminDash = () => {
         }
 
         const data = await response.json();
+        console.log("Admin data received:", data);
+        console.log("Admin name:", data.firstName, data.lastName);
+        console.log("Employee ID:", data.employeeId);
         setAdmin(data);
         
         // Keep your existing mock data for now
         setEmployees([
-          { id: 1, name: 'John Doe', position: 'Frontend Developer', department: 'Tech', status: 'online' },
-          { id: 2, name: 'Sarah Smith', position: 'HR Manager', department: 'HR', status: 'online' },
-          { id: 3, name: 'Mike Johnson', position: 'UI/UX Designer', department: 'Tech', status: 'away' },
-          { id: 4, name: 'Emily Davis', position: 'Product Manager', department: 'Marketing', status: 'offline' },
-          { id: 5, name: 'David Wilson', position: 'Accountant', department: 'Finance', status: 'online' }
+          { id: 1, name: 'John Doe', position: 'Frontend Developer', department: 'Tech', status: 'online', employeeId: '1A002' },
+          { id: 2, name: 'Sarah Smith', position: 'HR Manager', department: 'HR', status: 'online', employeeId: '1A003' },
+          { id: 3, name: 'Mike Johnson', position: 'UI/UX Designer', department: 'Tech', status: 'away', employeeId: '1A004' },
+          { id: 4, name: 'Emily Davis', position: 'Product Manager', department: 'Marketing', status: 'offline', employeeId: '1A005' },
+          { id: 5, name: 'David Wilson', position: 'Accountant', department: 'Finance', status: 'online', employeeId: '1A006' }
         ]);
         
       } catch (error) {
         console.error('Error details:', error);
         setError('Unable to connect to the server. Please check your connection.');
+        
+        // Set mock admin data as fallback
+        setAdmin({
+          id: 'mock-admin-1',
+          firstName: 'Admin',
+          lastName: 'User',
+          email: 'admin@example.com',
+          position: 'Administrator',
+          employeeId: '1A001',
+          avatar: null
+        });
       } finally {
         setLoading(false);
       }
@@ -254,8 +270,11 @@ const AdminDash = () => {
               </div>
             </Link>
             <div className="user-info">
-              <span>{admin?.name || 'Admin User'}</span>
-              <span className="role-badge admin-role">Administrator</span>
+              <span>{admin?.firstName ? `${admin.firstName} ${admin.lastName || ''}`.trim() : 'Admin User'}</span>
+              <div className="user-details">
+                <span className="role-badge admin-role">Administrator</span>
+                <span className="employee-id-badge">{admin?.employeeId || 'ID: Not assigned'}</span>
+              </div>
             </div>
             <img 
               onClick={() => navigate('/admin/profile')}
@@ -269,7 +288,8 @@ const AdminDash = () => {
         {/* Welcome Section */}
         <section className="welcome-section admin-welcome">
           <div className="welcome-text">
-            <h1>Welcome back, {admin?.name || 'Admin'}!</h1>
+            <h1>Welcome back, {admin?.firstName ? `${admin.firstName} ${admin.lastName || ''}`.trim() : 'Admin'}!</h1>
+            <p className="employee-id-welcome">Employee ID: {admin?.employeeId || 'Not assigned'}</p>
             <p>Here's your administrative overview for today.</p>
           </div>
           
@@ -282,9 +302,20 @@ const AdminDash = () => {
               <span className="action-icon">📊</span>
               Generate Report
             </button>
-            <button className="admin-action-button">
+            <button 
+              className="admin-action-button"
+              onClick={() => {
+                setShowAnnouncementForm(!showAnnouncementForm);
+                if (!showAnnouncementForm) {
+                  // Scroll to the announcement form
+                  setTimeout(() => {
+                    document.getElementById('announcement-section').scrollIntoView({ behavior: 'smooth' });
+                  }, 100);
+                }
+              }}
+            >
               <span className="action-icon">✉️</span>
-              Send Announcement
+              {showAnnouncementForm ? 'Hide Announcement Form' : 'Send Announcement'}
             </button>
           </div>
         </section>
@@ -328,6 +359,13 @@ const AdminDash = () => {
             </div>
           </div>
         </section>
+
+        {/* Announcement Form */}
+        {showAnnouncementForm && (
+          <section id="announcement-section">
+            <AnnouncementForm />
+          </section>
+        )}
 
         {/* Department Stats */}
         <section className="department-stats-section">
@@ -510,9 +548,10 @@ const AdminDash = () => {
           </div>
           
           <div className="profile-details" style={{ textAlign: 'center' }}>
-            <h3>{admin?.name || 'Admin User'}</h3>
+            <h3>{admin?.firstName ? `${admin.firstName} ${admin.lastName || ''}`.trim() : 'Admin User'}</h3>
             <p className="admin-role">System Administrator</p>
             <p>{admin?.email || 'admin@example.com'}</p>
+            <p>Employee ID: {admin?.employeeId || 'Not assigned'}</p>
             <p>Access Level: Full</p>
           </div>
           
@@ -540,7 +579,10 @@ const AdminDash = () => {
                 </div>
                 <div className="employee-details">
                   <h4>{employee.name}</h4>
-                  <p>{employee.position}</p>
+                  <div className="employee-info">
+                    <span className="employee-id-small">ID: {employee.employeeId}</span>
+                    <span className="employee-position">{employee.position}</span>
+                  </div>
                   <small>{employee.department}</small>
                 </div>
                 <button className="employee-action">...</button>

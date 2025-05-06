@@ -171,16 +171,39 @@
     flex-direction: column;
     text-align: right;
   }
-  
+
+  .user-details {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
   .role-badge {
     font-size: 0.75rem;
     color: #707EAE;
   }
-  
+
   .admin-role {
     font-size: 0.75rem;
     color: #4318FF;
     font-weight: 600;
+  }
+
+  .employee-id-badge {
+    font-size: 0.75rem;
+    color: #4318FF;
+    background: #f6f8fd;
+    padding: 2px 8px;
+    border-radius: 12px;
+    display: inline-block;
+  }
+
+  .employee-id-welcome {
+    font-size: 0.875rem;
+    color: #707EAE;
+    margin-bottom: 5px;
+    font-weight: 500;
   }
   
   .avatar {
@@ -663,11 +686,26 @@
     color: #2B3674;
     margin-bottom: 2px;
   }
-  
-  .employee-details p {
+
+  .employee-info {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 2px;
+  }
+
+  .employee-id-small {
+    font-size: 0.7rem;
+    color: #4318FF;
+    background: #f6f8fd;
+    padding: 1px 6px;
+    border-radius: 8px;
+    display: inline-block;
+  }
+
+  .employee-position {
     font-size: 0.75rem;
     color: #707EAE;
-    margin-bottom: 2px;
   }
   
   .employee-details small {

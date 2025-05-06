@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './Profile.css';
 import defaultAvatar from '../assets/avatar.png';
 import Navbar from './Navbar';
@@ -8,6 +8,10 @@ import Navbar from './Navbar';
 
 const Profile = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Check if we're on the admin profile route
+  const isAdminProfile = location.pathname === '/admin/profile';
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -295,7 +299,7 @@ const Profile = () => {
 
   return (
     <div>
-    <Navbar />
+    {!isAdminProfile && <Navbar />}
     <div className="profile-container">
       {submitStatus.show && (
         <div className={`status-message ${submitStatus.isError ? 'error' : 'success'}`}>
@@ -304,7 +308,15 @@ const Profile = () => {
       )}
       
       <div className="profile-header">
-        <h1>My Profile</h1>
+        <div className="profile-title">
+          <h1>{isAdminProfile ? 'Admin Profile' : 'My Profile'}</h1>
+          <button 
+            className="back-button"
+            onClick={() => navigate(isAdminProfile ? '/admindash' : '/dashboard')}
+          >
+            Back to {isAdminProfile ? 'Admin ' : ''}Dashboard
+          </button>
+        </div>
         <button 
           className={`edit-button ${isEditing ? 'cancel' : 'edit'}`}
           onClick={() => isEditing ? handleCancel() : setIsEditing(true)}

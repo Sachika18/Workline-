@@ -10,6 +10,7 @@ import profile from './Profile';
 import enhancedNotifications from './EnhancedNotifications';
 import DarkModeToggle from './DarkModeToggle';
 import { mockAttendance, mockAttendanceHistory, createMockCheckIn, createMockCheckOut } from '../utils/mockData';
+import TaskService from './services/TaskService';
 
 // Rest of your component remains the same
 
@@ -28,10 +29,10 @@ const Dashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [stats, setStats] = useState({
-    attendanceRate: 98,
-    completedTasks: 12,
-    pendingRequests: 3,
-    upcomingEvents: 2
+    attendanceRate: 0,
+    completedTasks: 0,
+    ongoingTasks: 0,
+    newTasks: 0
   });
 
   // Toggle sidebar for mobile
@@ -55,6 +56,26 @@ const Dashboard = () => {
     setSidebarOpen(false);
   }, [location]);
 
+  // Fetch task statistics
+  const fetchTaskStats = async () => {
+    try {
+      console.log('Dashboard: Fetching task statistics');
+      const taskStats = await TaskService.getTaskStats();
+      
+      // Update stats with task data
+      setStats(prevStats => ({
+        ...prevStats,
+        completedTasks: taskStats.completedTasks || 0,
+        ongoingTasks: taskStats.ongoingTasks || 0,
+        newTasks: taskStats.newTasks || 0
+      }));
+      
+      console.log('Dashboard: Updated task statistics:', taskStats);
+    } catch (error) {
+      console.error('Dashboard: Error fetching task statistics:', error);
+    }
+  };
+
   // Fetch user info and attendance data from the backend
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -65,6 +86,9 @@ const Dashboard = () => {
           navigate('/login');
           return;
         }
+        
+        // Fetch task statistics
+        await fetchTaskStats();
 
         let userData = null;
         let usedMockUserData = false;
@@ -642,7 +666,7 @@ const Dashboard = () => {
         <section className="stats-section">
           <div className="section-header">
             <h2>Quick Stats</h2>
-            <button onClick={() => navigate('/attendance')}>View Reports</button>
+            <button onClick={() => navigate('/tasks')}>View All Tasks</button>
           </div>
           
           <div className="stats-grid">
@@ -659,15 +683,15 @@ const Dashboard = () => {
             </div>
             
             <div className="stat-card" style={{ borderLeftColor: '#FFB547' }}>
-              <span className="stat-icon" role="img" aria-label="Requests">📩</span>
-              <h3>Pending Requests</h3>
-              <p>{stats.pendingRequests}</p>
+              <span className="stat-icon" role="img" aria-label="Tasks">🔄</span>
+              <h3>Ongoing Tasks</h3>
+              <p>{stats.ongoingTasks}</p>
             </div>
             
             <div className="stat-card" style={{ borderLeftColor: '#FF5252' }}>
-              <span className="stat-icon" role="img" aria-label="Events">🗓️</span>
-              <h3>Upcoming Events</h3>
-              <p>{stats.upcomingEvents}</p>
+              <span className="stat-icon" role="img" aria-label="Tasks">🆕</span>
+              <h3>New Tasks</h3>
+              <p>{stats.newTasks}</p>
             </div>
           </div>
         </section>
@@ -676,7 +700,6 @@ const Dashboard = () => {
         <section className="announcements-section">
           <div className="section-header">
             <h2>Announcements</h2>
-            <button>Create New</button>
           </div>
           
           <AnnouncementsList />
