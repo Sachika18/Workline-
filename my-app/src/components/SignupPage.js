@@ -11,7 +11,8 @@ const SignupPage = () => {
         email: '',
         password: '',
         retypePassword: '',
-        position: 'Admin'
+        position: 'Admin',
+        department: 'HR Department'
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
@@ -54,7 +55,8 @@ const SignupPage = () => {
             lastName: formData.lastName,
             email: formData.email,
             password: formData.password,
-            position: formData.position
+            position: formData.position,
+            ...(formData.position === 'Staff' && { department: formData.department })
         };
 
         console.log('Attempting to send registration to:', API_URL);
@@ -102,7 +104,8 @@ const SignupPage = () => {
                 firstName: data.firstName,
                 lastName: data.lastName,
                 email: data.email,
-                position: data.position
+                position: data.position,
+                department: data.department || ''
             }));
 
             // Redirect based on role
@@ -213,6 +216,23 @@ if (data.position === 'Admin') {
                                 </label>
                             </div>
                         </div>
+                        
+                        {formData.position === 'Staff' && (
+                            <div className="form-group">
+                                <label>Department</label>
+                                <select
+                                    name="department"
+                                    value={formData.department}
+                                    onChange={handleChange}
+                                    className="department-select"
+                                >
+                                    <option value="HR Department">HR Department</option>
+                                    <option value="Tech Department">Tech Department</option>
+                                    <option value="Finance Department">Finance Department</option>
+                                    <option value="Marketing Department">Marketing Department</option>
+                                </select>
+                            </div>
+                        )}
 
                         <div className="form-group">
                             <label>Enter Password</label>
