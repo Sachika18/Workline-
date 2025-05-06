@@ -21,6 +21,7 @@ import com.example.Backend.config.JwtTokenUtil;
 import com.example.Backend.model.Task;
 import com.example.Backend.service.TaskService;
 import com.example.Backend.service.UserService;
+import com.example.Backend.util.NotificationGenerator;
 
 @RestController
 @RequestMapping("/api/tasks")
@@ -34,6 +35,9 @@ public class TaskController {
     
     @Autowired
     private JwtTokenUtil jwtTokenUtil;
+    
+    @Autowired
+    private NotificationGenerator notificationGenerator;
 
     // Create a new task
     @PostMapping
@@ -56,6 +60,9 @@ public class TaskController {
             
             // Create the task
             Task newTask = taskService.createTask(title, description, assignedTo, dueDate, adminId);
+            
+            // Generate notification for the assigned user
+            notificationGenerator.generateTaskAssignmentNotification(newTask);
             
             return new ResponseEntity<>(newTask, HttpStatus.CREATED);
         } catch (Exception e) {
@@ -119,6 +126,11 @@ public class TaskController {
             
             Task.TaskStatus newStatus = Task.TaskStatus.valueOf(statusStr.toUpperCase());
             Task updatedTask = taskService.updateTaskStatus(id, newStatus);
+            
+            // If task is completed, generate notification for the task creator
+            if (newStatus == Task.TaskStatus.COMPLETED) {
+                notificationGenerator.generateTaskCompletionNotification(updatedTask, updatedTask.getCreatedBy());
+            }
             
             System.out.println("TaskController: Task status updated successfully: " + updatedTask);
             return new ResponseEntity<>(updatedTask, HttpStatus.OK);

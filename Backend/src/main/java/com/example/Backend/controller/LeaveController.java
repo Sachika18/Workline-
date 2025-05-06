@@ -26,6 +26,7 @@ import com.example.Backend.model.Leave;
 import com.example.Backend.model.User;
 import com.example.Backend.service.LeaveService;
 import com.example.Backend.service.UserService;
+import com.example.Backend.util.NotificationGenerator;
 
 @RestController
 @RequestMapping("/api/leaves")
@@ -34,12 +35,14 @@ public class LeaveController {
     private final LeaveService leaveService;
     private final UserService userService;
     private final JwtTokenUtil jwtTokenUtil;
+    private final NotificationGenerator notificationGenerator;
 
     @Autowired
-    public LeaveController(LeaveService leaveService, UserService userService, JwtTokenUtil jwtTokenUtil) {
+    public LeaveController(LeaveService leaveService, UserService userService, JwtTokenUtil jwtTokenUtil, NotificationGenerator notificationGenerator) {
         this.leaveService = leaveService;
         this.userService = userService;
         this.jwtTokenUtil = jwtTokenUtil;
+        this.notificationGenerator = notificationGenerator;
     }
 
     @PostMapping("/apply")
@@ -307,6 +310,9 @@ public class LeaveController {
 
             // Approve leave
             Leave approvedLeave = leaveService.updateLeaveStatus(id, "APPROVED");
+            
+            // Generate notification for the user
+            notificationGenerator.generateLeaveApprovalNotification(approvedLeave);
 
             return ResponseEntity.ok(Map.of(
                 "message", "Leave approved successfully",
@@ -344,6 +350,9 @@ public class LeaveController {
 
             // Reject leave
             Leave rejectedLeave = leaveService.updateLeaveStatus(id, "REJECTED");
+            
+            // Generate notification for the user
+            notificationGenerator.generateLeaveRejectionNotification(rejectedLeave);
 
             return ResponseEntity.ok(Map.of(
                 "message", "Leave rejected",
