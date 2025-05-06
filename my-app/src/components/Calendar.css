@@ -133,6 +133,10 @@
   .calendar-cell.selected {
     background-color: rgba(67, 24, 255, 0.1);
   }
+
+  .calendar-cell.sunday {
+    background-color: rgba(5, 205, 153, 0.1);
+  }
   
   .date-number {
     font-weight: 500;
@@ -158,6 +162,117 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
+  }
+
+  .cell-controls {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .add-note-btn, .add-task-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px;
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+  }
+
+  .calendar-cell:hover .add-note-btn,
+  .calendar-cell:hover .add-task-btn {
+    opacity: 1;
+  }
+
+  .note-indicator {
+    width: 6px;
+    height: 6px;
+    background-color: #4318FF;
+    border-radius: 50%;
+  }
+
+  .task-indicator {
+    font-size: 10px;
+    background-color: #FF5252;
+    color: white;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .tasks-list {
+    margin-top: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    max-height: 50px;
+    overflow: hidden;
+  }
+
+  .task-item {
+    font-size: 10px;
+    padding: 2px 5px;
+    border-radius: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: white;
+  }
+
+  .priority-high {
+    background-color: #FF5252;
+  }
+
+  .priority-medium {
+    background-color: #FFB547;
+  }
+
+  .priority-low {
+    background-color: #05CD99;
+  }
+
+  .more-tasks {
+    font-size: 9px;
+    color: #707EAE;
+    text-align: right;
+  }
+
+  .note-textarea {
+    min-height: 150px;
+    resize: vertical;
+  }
+
+  .task-title-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #eaeaea;
+    border-radius: 10px;
+    font-size: 0.9rem;
+  }
+
+  .task-description-textarea {
+    min-height: 100px;
+    resize: vertical;
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #eaeaea;
+    border-radius: 10px;
+    font-size: 0.9rem;
+  }
+
+  .task-priority-select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #eaeaea;
+    border-radius: 10px;
+    font-size: 0.9rem;
   }
   
   .tooltip {
@@ -189,10 +304,60 @@
     border-bottom: 1px solid #eaeaea;
   }
   
-  .tooltip-leave:last-child {
+  .tooltip-leave:last-child,
+  .tooltip-note:last-child {
     margin-bottom: 0;
     padding-bottom: 0;
     border-bottom: none;
+  }
+
+  .tooltip-note, .tooltip-tasks {
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eaeaea;
+  }
+
+  .note-icon, .tasks-icon {
+    margin-right: 5px;
+  }
+
+  .task-item-tooltip {
+    margin-bottom: 8px;
+    padding: 5px;
+    border-radius: 5px;
+    border-left: 3px solid;
+  }
+
+  .task-item-tooltip.priority-high {
+    border-left-color: #FF5252;
+    background-color: rgba(255, 82, 82, 0.1);
+  }
+
+  .task-item-tooltip.priority-medium {
+    border-left-color: #FFB547;
+    background-color: rgba(255, 181, 71, 0.1);
+  }
+
+  .task-item-tooltip.priority-low {
+    border-left-color: #05CD99;
+    background-color: rgba(5, 205, 153, 0.1);
+  }
+
+  .task-title {
+    margin: 0 0 5px 0;
+    font-size: 0.95rem;
+  }
+
+  .task-description {
+    margin: 0 0 5px 0;
+    font-size: 0.85rem;
+    color: #707EAE;
+  }
+
+  .task-priority {
+    margin: 0;
+    font-size: 0.8rem;
+    color: #707EAE;
   }
   
   .tooltip-header {
@@ -458,7 +623,7 @@
   
   .status-badge.status-rejected {
     background-color: rgba(255, 82, 82, 0.2);
-    color: #FF5252;
+    color: #37ba33;
   }
   
   .legend {
