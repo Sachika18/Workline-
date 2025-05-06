@@ -692,8 +692,8 @@ const AdminDocuments = () => {
                       
                       {request.status === 'Pending' && (
                         <div className="request-actions">
-                          {/* Only show upload button if it's not admin's own request */}
-                          {request.requestType !== 'admin-to-user' && (
+                          {/* Only show upload button for incoming requests from users */}
+                          {!request.requestType && (
                             <button 
                               className="action-button upload-action"
                               onClick={() => openUploadModal(request)}
@@ -745,16 +745,17 @@ const AdminDocuments = () => {
                       {request.status === 'Completed' && request.documentId && (
                         <div className="request-actions">
                           <button 
-                            className="action-button view-action"
+                            className="action-button download-action"
                             onClick={() => {
                               const document = documents.find(doc => doc.id === request.documentId);
                               if (document) {
-                                handlePreview(document);
+                                // Download document instead of preview
+                                window.open(document.fileUrl, '_blank');
                               }
                             }}
                           >
-                            <Eye size={16} />
-                            <span>View Document</span>
+                            <Download size={16} />
+                            <span>Download Document</span>
                           </button>
                         </div>
                       )}
@@ -913,7 +914,9 @@ const AdminDocuments = () => {
             <div className="modal-header">
               <h3>
                 {currentRequest 
-                  ? `Upload Document for ${currentRequest.userName}` 
+                  ? (currentRequest.requestType === 'admin-to-user' 
+                     ? `Document Request to ${currentRequest.forUserName}` 
+                     : `Upload Document for ${currentRequest.userName}`)
                   : 'Upload Document'}
               </h3>
               <button className="close-button" onClick={closeUploadModal}>×</button>

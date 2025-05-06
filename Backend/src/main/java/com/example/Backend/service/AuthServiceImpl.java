@@ -1,11 +1,12 @@
 package com.example.Backend.service;
 
-import com.example.Backend.model.User;
-import com.example.Backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import com.example.Backend.model.User;
+import com.example.Backend.repository.UserRepository;
 
 @Service
 public class AuthServiceImpl implements AuthService {
@@ -26,8 +27,21 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("Email is already registered");
         }
 
+        // Validate that firstName and lastName are provided
+        if (user.getFirstName() == null || user.getFirstName().trim().isEmpty()) {
+            throw new IllegalArgumentException("First name is required");
+        }
+        
+        if (user.getLastName() == null || user.getLastName().trim().isEmpty()) {
+            throw new IllegalArgumentException("Last name is required");
+        }
+
         // Encode password before saving
         user.setPassword(passwordEncoder.encode(user.getPassword()));
+
+        // Log the user being registered
+        System.out.println("Registering user: " + user.getFirstName() + " " + user.getLastName() + 
+                           " (" + user.getEmail() + ") as " + user.getPosition());
 
         // Save user to database
         return userRepository.save(user);

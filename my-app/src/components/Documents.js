@@ -118,8 +118,46 @@ const Documents = () => {
     // Load requests for the user (requests made for the user)
     DocumentService.getRequestsForUser('user123')
       .then(response => {
+        console.log('Admin requests from API:', response.data);
         if (response.data && response.data.length > 0) {
           setAdminRequests(response.data);
+        } else {
+          // Sample admin-to-user requests if none exist
+          const sampleAdminRequests = [
+            {
+              id: 101,
+              userId: 'admin123',
+              userName: 'Admin User',
+              documentName: 'Performance Review Document',
+              description: 'Please upload your self-assessment for Q2 review',
+              requestDate: '2025-04-05',
+              status: 'Pending',
+              deadline: '2025-04-25',
+              forUserId: 'user123',
+              forUserName: 'Demo User',
+              requestType: 'admin-to-user'
+            },
+            {
+              id: 102,
+              userId: 'admin123',
+              userName: 'Admin User',
+              documentName: 'Training Certificate',
+              description: 'Please upload your completed training certificate',
+              requestDate: '2025-04-08',
+              status: 'Pending',
+              deadline: '2025-04-20',
+              forUserId: 'user123',
+              forUserName: 'Demo User',
+              requestType: 'admin-to-user'
+            }
+          ];
+          console.log('Using sample admin requests:', sampleAdminRequests);
+          setAdminRequests(sampleAdminRequests);
+          
+          // Save sample admin requests
+          const allRequests = localStorage.getItem('document_requests');
+          const parsedRequests = allRequests ? JSON.parse(allRequests) : [];
+          localStorage.setItem('document_requests', JSON.stringify([...parsedRequests, ...sampleAdminRequests]));
         }
       })
       .catch(error => {
@@ -865,6 +903,7 @@ const Documents = () => {
                         <button 
                           className="action-button upload-button"
                           onClick={() => document.getElementById(`file-upload-${request.id}`).click()}
+                          style={{ display: 'flex' }} /* Force display */
                         >
                           <Upload size={16} />
                           <span>Upload Document</span>

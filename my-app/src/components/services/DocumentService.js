@@ -1,22 +1,35 @@
 import api from '../../utils/api';
+import fetchApi from '../../utils/fetchApi';
 
 // This service handles document-related operations
-// It currently uses localStorage for persistence, but is structured to easily
-// transition to a backend API when available
-
-import fetchApi from '../../utils/fetchApi';
+// It now uses the backend API with localStorage fallback for offline support
 
 class DocumentService {
   // Get all documents (for admin)
-  getAllDocuments() {
+  async getAllDocuments() {
     try {
-      // In a real implementation, this would be an API call:
-      // return api.get('/documents');
+      // Try to get documents from API
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const response = await fetchApi.get('/documents');
+          console.log('Documents API response:', response);
+          
+          // Cache the response in localStorage for offline use
+          if (Array.isArray(response)) {
+            localStorage.setItem('admin_documents', JSON.stringify(response));
+            return { data: response };
+          }
+        } catch (error) {
+          console.error('Error fetching documents from API:', error);
+        }
+      }
       
+      // Fallback to localStorage if API fails
       const documents = localStorage.getItem('admin_documents');
-      return Promise.resolve({
+      return {
         data: documents ? JSON.parse(documents) : []
-      });
+      };
     } catch (error) {
       console.error('Error getting documents:', error);
       return Promise.reject(error);
@@ -24,11 +37,26 @@ class DocumentService {
   }
 
   // Get user documents
-  getUserDocuments(userId = null) {
+  async getUserDocuments(userId = null) {
     try {
-      // In a real implementation, this would be an API call:
-      // return api.get('/documents/user');
+      // Try to get documents from API
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const response = await fetchApi.get('/documents/user');
+          console.log('User documents API response:', response);
+          
+          // Cache the response in localStorage for offline use
+          if (Array.isArray(response)) {
+            localStorage.setItem('user_documents', JSON.stringify(response));
+            return { data: response };
+          }
+        } catch (error) {
+          console.error('Error fetching user documents from API:', error);
+        }
+      }
       
+      // Fallback to localStorage if API fails
       const documents = localStorage.getItem('user_documents');
       const parsedDocs = documents ? JSON.parse(documents) : [];
       
@@ -37,9 +65,9 @@ class DocumentService {
         ? parsedDocs.filter(doc => doc.forUserId === userId || doc.forUser === 'All Employees')
         : parsedDocs;
       
-      return Promise.resolve({
+      return {
         data: filteredDocs
-      });
+      };
     } catch (error) {
       console.error('Error getting user documents:', error);
       return Promise.reject(error);
@@ -47,11 +75,65 @@ class DocumentService {
   }
 
   // Upload a document
-  uploadDocument(documentData, forRequestId = null) {
+  async uploadDocument(documentData, forRequestId = null) {
     try {
-      // In a real implementation, this would be an API call:
-      // return api.post('/documents', documentData);
+      // Try to upload document to API
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          // Create FormData for file upload
+          const formData = new FormData();
+          
+          // Add document metadata
+          formData.append('name', documentData.name);
+          formData.append('type', documentData.type);
+          formData.append('size', documentData.size);
+          
+          if (documentData.forUser) {
+            formData.append('forUser', documentData.forUser);
+          }
+          
+          if (documentData.forUserId) {
+            formData.append('forUserId', documentData.forUserId);
+          }
+          
+          if (forRequestId) {
+            formData.append('forRequestId', forRequestId);
+          }
+          
+          // If we have an actual file object, add it
+          if (documentData.file) {
+            formData.append('file', documentData.file);
+          }
+          
+          // Use fetch directly for FormData
+          const url = `${fetchApi.getBaseUrl()}/documents`;
+          const options = {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            },
+            body: formData
+          };
+          
+          const response = await fetch(url, options);
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          }
+          
+          const uploadedDoc = await response.json();
+          console.log('Document upload API response:', uploadedDoc);
+          
+          // Update local cache
+          this.updateLocalDocumentCache(uploadedDoc);
+          
+          return { data: uploadedDoc };
+        } catch (error) {
+          console.error('Error uploading document to API:', error);
+        }
+      }
       
+      // Fallback to localStorage if API fails
       // Add request ID if provided
       const docWithRequestId = forRequestId 
         ? { ...documentData, forRequestId } 
@@ -62,37 +144,8 @@ class DocumentService {
         docWithRequestId.id = Date.now() + Math.random();
       }
       
-      // For admin uploads - always add to admin documents
-      let adminDocuments = localStorage.getItem('admin_documents');
-      adminDocuments = adminDocuments ? JSON.parse(adminDocuments) : [];
-      
-      // Check if document already exists (by ID)
-      const existingAdminDocIndex = adminDocuments.findIndex(doc => doc.id === docWithRequestId.id);
-      if (existingAdminDocIndex >= 0) {
-        // Update existing document
-        adminDocuments[existingAdminDocIndex] = docWithRequestId;
-      } else {
-        // Add new document
-        adminDocuments = [docWithRequestId, ...adminDocuments];
-      }
-      
-      localStorage.setItem('admin_documents', JSON.stringify(adminDocuments));
-      
-      // Always add to user documents as well for consistency
-      let userDocuments = localStorage.getItem('user_documents');
-      userDocuments = userDocuments ? JSON.parse(userDocuments) : [];
-      
-      // Check if document already exists (by ID)
-      const existingUserDocIndex = userDocuments.findIndex(doc => doc.id === docWithRequestId.id);
-      if (existingUserDocIndex >= 0) {
-        // Update existing document
-        userDocuments[existingUserDocIndex] = docWithRequestId;
-      } else {
-        // Add new document
-        userDocuments = [docWithRequestId, ...userDocuments];
-      }
-      
-      localStorage.setItem('user_documents', JSON.stringify(userDocuments));
+      // Update local storage
+      this.updateLocalDocumentCache(docWithRequestId);
       
       // If this is for a request, update the request status
       if (forRequestId) {
@@ -103,67 +156,136 @@ class DocumentService {
         });
       }
       
-      return Promise.resolve({
+      return {
         data: docWithRequestId
-      });
+      };
     } catch (error) {
       console.error('Error uploading document:', error);
       return Promise.reject(error);
     }
   }
+  
+  // Helper method to update local document cache
+  updateLocalDocumentCache(document) {
+    // Update admin documents
+    let adminDocuments = localStorage.getItem('admin_documents');
+    adminDocuments = adminDocuments ? JSON.parse(adminDocuments) : [];
+    
+    // Check if document already exists (by ID)
+    const existingAdminDocIndex = adminDocuments.findIndex(doc => doc.id === document.id);
+    if (existingAdminDocIndex >= 0) {
+      // Update existing document
+      adminDocuments[existingAdminDocIndex] = document;
+    } else {
+      // Add new document
+      adminDocuments = [document, ...adminDocuments];
+    }
+    
+    localStorage.setItem('admin_documents', JSON.stringify(adminDocuments));
+    
+    // Update user documents
+    let userDocuments = localStorage.getItem('user_documents');
+    userDocuments = userDocuments ? JSON.parse(userDocuments) : [];
+    
+    // Check if document already exists (by ID)
+    const existingUserDocIndex = userDocuments.findIndex(doc => doc.id === document.id);
+    if (existingUserDocIndex >= 0) {
+      // Update existing document
+      userDocuments[existingUserDocIndex] = document;
+    } else {
+      // Add new document
+      userDocuments = [document, ...userDocuments];
+    }
+    
+    localStorage.setItem('user_documents', JSON.stringify(userDocuments));
+  }
 
   // Delete a document
-  deleteDocument(documentId) {
+  async deleteDocument(documentId) {
     try {
-      // In a real implementation, this would be an API call:
-      // return api.delete(`/documents/${documentId}`);
-      
-      // Remove from admin documents
-      let adminDocuments = localStorage.getItem('admin_documents');
-      adminDocuments = adminDocuments ? JSON.parse(adminDocuments) : [];
-      adminDocuments = adminDocuments.filter(doc => doc.id !== documentId);
-      localStorage.setItem('admin_documents', JSON.stringify(adminDocuments));
-      
-      // Remove from user documents
-      let userDocuments = localStorage.getItem('user_documents');
-      userDocuments = userDocuments ? JSON.parse(userDocuments) : [];
-      userDocuments = userDocuments.filter(doc => doc.id !== documentId);
-      localStorage.setItem('user_documents', JSON.stringify(userDocuments));
-      
-      // Check if this document was for a request and update the request status
-      let requests = localStorage.getItem('document_requests');
-      if (requests) {
-        requests = JSON.parse(requests);
-        const relatedRequest = requests.find(req => req.documentId === documentId);
-        
-        if (relatedRequest) {
-          this.updateDocumentRequest(relatedRequest.id, {
-            status: 'Pending',
-            completedDate: null,
-            documentId: null
-          });
+      // Try to delete document from API
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          await fetchApi.delete(`/documents/${documentId}`);
+          console.log('Document delete API response successful');
+          
+          // Update local cache after successful API call
+          this.removeDocumentFromLocalCache(documentId);
+          
+          return { data: { id: documentId } };
+        } catch (error) {
+          console.error('Error deleting document from API:', error);
         }
       }
       
-      return Promise.resolve({
+      // Fallback to localStorage if API fails
+      this.removeDocumentFromLocalCache(documentId);
+      
+      return {
         data: { id: documentId }
-      });
+      };
     } catch (error) {
       console.error('Error deleting document:', error);
       return Promise.reject(error);
     }
   }
+  
+  // Helper method to remove document from local cache
+  removeDocumentFromLocalCache(documentId) {
+    // Remove from admin documents
+    let adminDocuments = localStorage.getItem('admin_documents');
+    adminDocuments = adminDocuments ? JSON.parse(adminDocuments) : [];
+    adminDocuments = adminDocuments.filter(doc => doc.id !== documentId);
+    localStorage.setItem('admin_documents', JSON.stringify(adminDocuments));
+    
+    // Remove from user documents
+    let userDocuments = localStorage.getItem('user_documents');
+    userDocuments = userDocuments ? JSON.parse(userDocuments) : [];
+    userDocuments = userDocuments.filter(doc => doc.id !== documentId);
+    localStorage.setItem('user_documents', JSON.stringify(userDocuments));
+    
+    // Check if this document was for a request and update the request status
+    let requests = localStorage.getItem('document_requests');
+    if (requests) {
+      requests = JSON.parse(requests);
+      const relatedRequest = requests.find(req => req.documentId === documentId);
+      
+      if (relatedRequest) {
+        this.updateDocumentRequest(relatedRequest.id, {
+          status: 'Pending',
+          completedDate: null,
+          documentId: null
+        });
+      }
+    }
+  }
 
   // Get all document requests
-  getAllDocumentRequests() {
+  async getAllDocumentRequests() {
     try {
-      // In a real implementation, this would be an API call:
-      // return api.get('/document-requests');
+      // Try to get requests from API
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const response = await fetchApi.get('/document-requests');
+          console.log('Document requests API response:', response);
+          
+          // Cache the response in localStorage for offline use
+          if (Array.isArray(response)) {
+            localStorage.setItem('document_requests', JSON.stringify(response));
+            return { data: response };
+          }
+        } catch (error) {
+          console.error('Error fetching document requests from API:', error);
+        }
+      }
       
+      // Fallback to localStorage if API fails
       const requests = localStorage.getItem('document_requests');
-      return Promise.resolve({
+      return {
         data: requests ? JSON.parse(requests) : []
-      });
+      };
     } catch (error) {
       console.error('Error getting document requests:', error);
       return Promise.reject(error);
@@ -171,41 +293,43 @@ class DocumentService {
   }
 
   // Get user document requests (requests made by the user)
-  getUserDocumentRequests(userId = null) {
+  async getUserDocumentRequests(userId = null) {
     try {
-      // In a real implementation, this would be an API call:
-      // return api.get('/document-requests/user');
-      
-      // Try to get current user from localStorage
-      let currentUserId = userId;
-      
-      if (!currentUserId) {
-        const token = localStorage.getItem('token');
-        if (token) {
-          const currentUser = localStorage.getItem('currentUser');
-          if (currentUser) {
-            try {
-              const parsedUser = JSON.parse(currentUser);
-              currentUserId = parsedUser.id;
-            } catch (error) {
-              console.error('Error parsing current user from localStorage:', error);
-            }
+      // Try to get user requests from API
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const response = await fetchApi.get('/document-requests/user');
+          console.log('User document requests API response:', response);
+          
+          // Cache the response in localStorage for offline use
+          if (Array.isArray(response)) {
+            // We'll store these separately to avoid conflicts with all requests
+            const allRequests = localStorage.getItem('document_requests');
+            const parsedAllRequests = allRequests ? JSON.parse(allRequests) : [];
+            
+            // Replace user requests in the all requests array
+            const currentUserId = this.getCurrentUserId(userId);
+            const filteredRequests = parsedAllRequests.filter(req => req.userId !== currentUserId);
+            const updatedRequests = [...response, ...filteredRequests];
+            
+            localStorage.setItem('document_requests', JSON.stringify(updatedRequests));
+            return { data: response };
           }
-        }
-        
-        // Fallback for demo
-        if (!currentUserId) {
-          currentUserId = 'user123';
+        } catch (error) {
+          console.error('Error fetching user document requests from API:', error);
         }
       }
       
+      // Fallback to localStorage if API fails
+      const currentUserId = this.getCurrentUserId(userId);
       const requests = localStorage.getItem('document_requests');
       const allRequests = requests ? JSON.parse(requests) : [];
       const userRequests = allRequests.filter(req => req.userId === currentUserId);
       
-      return Promise.resolve({
+      return {
         data: userRequests
-      });
+      };
     } catch (error) {
       console.error('Error getting user document requests:', error);
       return Promise.reject(error);
@@ -213,139 +337,253 @@ class DocumentService {
   }
   
   // Get requests for a user (requests made for the user)
-  getRequestsForUser(userId = null) {
+  async getRequestsForUser(userId = null) {
     try {
-      // In a real implementation, this would be an API call:
-      // return api.get('/document-requests/for-user');
-      
-      // Try to get current user from localStorage
-      let currentUserId = userId;
-      
-      if (!currentUserId) {
-        const token = localStorage.getItem('token');
-        if (token) {
-          const currentUser = localStorage.getItem('currentUser');
-          if (currentUser) {
-            try {
-              const parsedUser = JSON.parse(currentUser);
-              currentUserId = parsedUser.id;
-            } catch (error) {
-              console.error('Error parsing current user from localStorage:', error);
-            }
+      // Try to get requests for user from API
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const response = await fetchApi.get('/document-requests/for-user');
+          console.log('Requests for user API response:', response);
+          
+          // Cache the response in localStorage for offline use
+          if (Array.isArray(response)) {
+            // We'll store these separately to avoid conflicts with all requests
+            const allRequests = localStorage.getItem('document_requests');
+            const parsedAllRequests = allRequests ? JSON.parse(allRequests) : [];
+            
+            // Replace requests for this user in the all requests array
+            const currentUserId = this.getCurrentUserId(userId);
+            const filteredRequests = parsedAllRequests.filter(req => req.forUserId !== currentUserId);
+            const updatedRequests = [...response, ...filteredRequests];
+            
+            localStorage.setItem('document_requests', JSON.stringify(updatedRequests));
+            return { data: response };
           }
-        }
-        
-        // Fallback for demo
-        if (!currentUserId) {
-          currentUserId = 'user123';
+        } catch (error) {
+          console.error('Error fetching requests for user from API:', error);
         }
       }
       
+      // Fallback to localStorage if API fails
+      const currentUserId = this.getCurrentUserId(userId);
       const requests = localStorage.getItem('document_requests');
       const allRequests = requests ? JSON.parse(requests) : [];
       const requestsForUser = allRequests.filter(req => req.forUserId === currentUserId);
       
-      return Promise.resolve({
+      return {
         data: requestsForUser
-      });
+      };
     } catch (error) {
       console.error('Error getting requests for user:', error);
       return Promise.reject(error);
     }
   }
+  
+  // Helper method to get current user ID
+  getCurrentUserId(userId = null) {
+    // If userId is provided, use it
+    if (userId) {
+      return userId;
+    }
+    
+    // Try to get current user from localStorage
+    const token = localStorage.getItem('token');
+    if (token) {
+      const currentUser = localStorage.getItem('currentUser');
+      if (currentUser) {
+        try {
+          const parsedUser = JSON.parse(currentUser);
+          if (parsedUser.id) {
+            return parsedUser.id;
+          }
+        } catch (error) {
+          console.error('Error parsing current user from localStorage:', error);
+        }
+      }
+    }
+    
+    // Fallback for demo
+    return 'user123';
+  }
 
   // Create a document request
-  createDocumentRequest(requestData) {
+  async createDocumentRequest(requestData) {
     try {
-      // In a real implementation, this would be an API call:
-      // return api.post('/document-requests', requestData);
+      // Try to create request via API
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const response = await fetchApi.post('/document-requests', requestData);
+          console.log('Create document request API response:', response);
+          
+          // Update local cache
+          this.addRequestToLocalCache(response);
+          
+          return { data: response };
+        } catch (error) {
+          console.error('Error creating document request via API:', error);
+        }
+      }
       
-      let requests = localStorage.getItem('document_requests');
-      requests = requests ? JSON.parse(requests) : [];
-      
-      // Add the new request
+      // Fallback to localStorage if API fails
       const newRequest = {
-        id: Date.now(),
+        id: Date.now().toString(),
         ...requestData,
         requestDate: new Date().toISOString().split('T')[0],
         status: 'Pending'
       };
       
-      requests = [newRequest, ...requests];
-      localStorage.setItem('document_requests', JSON.stringify(requests));
+      this.addRequestToLocalCache(newRequest);
       
-      return Promise.resolve({
+      return {
         data: newRequest
-      });
+      };
     } catch (error) {
       console.error('Error creating document request:', error);
       return Promise.reject(error);
     }
   }
+  
+  // Helper method to add request to local cache
+  addRequestToLocalCache(request) {
+    let requests = localStorage.getItem('document_requests');
+    requests = requests ? JSON.parse(requests) : [];
+    
+    // Add the new request
+    requests = [request, ...requests];
+    localStorage.setItem('document_requests', JSON.stringify(requests));
+  }
 
   // Update a document request
-  updateDocumentRequest(requestId, updateData) {
+  async updateDocumentRequest(requestId, updateData) {
     try {
-      // In a real implementation, this would be an API call:
-      // return api.put(`/document-requests/${requestId}`, updateData);
+      // Try to update request via API
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const response = await fetchApi.patch(`/document-requests/${requestId}/status`, { 
+            status: updateData.status 
+          });
+          console.log('Update document request API response:', response);
+          
+          // Update local cache
+          this.updateRequestInLocalCache(requestId, updateData);
+          
+          return { data: response };
+        } catch (error) {
+          console.error('Error updating document request via API:', error);
+        }
+      }
       
-      let requests = localStorage.getItem('document_requests');
-      requests = requests ? JSON.parse(requests) : [];
+      // Fallback to localStorage if API fails
+      const updatedRequest = this.updateRequestInLocalCache(requestId, updateData);
       
-      // Update the request
-      requests = requests.map(req => 
-        req.id === requestId ? { ...req, ...updateData } : req
-      );
-      
-      localStorage.setItem('document_requests', JSON.stringify(requests));
-      
-      return Promise.resolve({
-        data: requests.find(req => req.id === requestId)
-      });
+      return {
+        data: updatedRequest
+      };
     } catch (error) {
       console.error('Error updating document request:', error);
       return Promise.reject(error);
     }
   }
+  
+  // Helper method to update request in local cache
+  updateRequestInLocalCache(requestId, updateData) {
+    let requests = localStorage.getItem('document_requests');
+    requests = requests ? JSON.parse(requests) : [];
+    
+    // Find the request to update
+    const requestToUpdate = requests.find(req => req.id === requestId);
+    if (!requestToUpdate) {
+      return null;
+    }
+    
+    // Update the request
+    const updatedRequest = { ...requestToUpdate, ...updateData };
+    
+    // Replace in the array
+    requests = requests.map(req => 
+      req.id === requestId ? updatedRequest : req
+    );
+    
+    localStorage.setItem('document_requests', JSON.stringify(requests));
+    
+    return updatedRequest;
+  }
 
   // Add activity
-  addActivity(activityData) {
+  async addActivity(activityData) {
     try {
-      // In a real implementation, this would be an API call:
-      // return api.post('/document-activities', activityData);
+      // Try to add activity via API
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const response = await fetchApi.post('/document-activities', activityData);
+          console.log('Add activity API response:', response);
+          
+          // Update local cache
+          this.addActivityToLocalCache(response);
+          
+          return { data: response };
+        } catch (error) {
+          console.error('Error adding activity via API:', error);
+        }
+      }
       
-      let activities = localStorage.getItem('document_activities');
-      activities = activities ? JSON.parse(activities) : [];
-      
-      // Add the new activity
+      // Fallback to localStorage if API fails
       const newActivity = {
-        id: Date.now(),
+        id: Date.now().toString(),
         ...activityData,
         timestamp: new Date().toISOString()
       };
       
-      activities = [newActivity, ...activities];
-      localStorage.setItem('document_activities', JSON.stringify(activities));
+      this.addActivityToLocalCache(newActivity);
       
-      return Promise.resolve({
+      return {
         data: newActivity
-      });
+      };
     } catch (error) {
       console.error('Error adding activity:', error);
       return Promise.reject(error);
     }
   }
+  
+  // Helper method to add activity to local cache
+  addActivityToLocalCache(activity) {
+    let activities = localStorage.getItem('document_activities');
+    activities = activities ? JSON.parse(activities) : [];
+    
+    // Add the new activity
+    activities = [activity, ...activities];
+    localStorage.setItem('document_activities', JSON.stringify(activities));
+  }
 
   // Get all activities
-  getAllActivities() {
+  async getAllActivities() {
     try {
-      // In a real implementation, this would be an API call:
-      // return api.get('/document-activities');
+      // Try to get activities from API
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const response = await fetchApi.get('/document-activities');
+          console.log('Activities API response:', response);
+          
+          // Cache the response in localStorage for offline use
+          if (Array.isArray(response)) {
+            localStorage.setItem('document_activities', JSON.stringify(response));
+            return { data: response };
+          }
+        } catch (error) {
+          console.error('Error fetching activities from API:', error);
+        }
+      }
       
+      // Fallback to localStorage if API fails
       const activities = localStorage.getItem('document_activities');
-      return Promise.resolve({
+      return {
         data: activities ? JSON.parse(activities) : []
-      });
+      };
     } catch (error) {
       console.error('Error getting activities:', error);
       return Promise.reject(error);

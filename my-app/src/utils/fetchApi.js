@@ -2,6 +2,11 @@
 
 const API_BASE_URL = 'http://localhost:8080/api';
 
+// Helper function to get the base URL
+const getBaseUrl = () => {
+  return API_BASE_URL;
+};
+
 // Helper function to handle common fetch options
 const createFetchOptions = (method, data = null) => {
   const token = localStorage.getItem('token');
@@ -96,6 +101,11 @@ const handleResponse = async (response) => {
 
 // API methods
 const fetchApi = {
+  // Get base URL
+  getBaseUrl: () => {
+    return API_BASE_URL;
+  },
+  
   // GET request
   get: async (endpoint) => {
     try {
