@@ -4,6 +4,8 @@ import './AdminDash.css'; // Make sure to create this CSS file
 import defaultAvatar from '../assets/avatar.png';
 import MobileMenu from './MobileMenu';
 import AnnouncementForm from './AnnouncementForm';
+import TaskService from './services/TaskService';
+import EmployeeService from './services/EmployeeService';
 
 const AdminDash = () => {
   const navigate = useNavigate();
@@ -22,11 +24,14 @@ const AdminDash = () => {
     marketing: { headcount: 15, attendance: 92, tasks: 32 }
   });
   const [systemStats, setSystemStats] = useState({
-    totalEmployees: 73,
-    activeNow: 52,
-    pendingApprovals: 7,
-    pendingLeaves: 5,
-    openPositions: 5
+    totalEmployees: 0,
+    activeNow: 0,
+    completedTasks: 0,
+    ongoingTasks: 0,
+    newTasks: 0,
+    tasksDueSoon: 0,
+    overdueTasks: 0,
+    newEmployees: 0
   });
   const [recentActivity, setRecentActivity] = useState([
     { 
@@ -89,12 +94,104 @@ const AdminDash = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // Fetch system statistics
+  const fetchSystemStats = async () => {
+    try {
+      console.log('AdminDash: Fetching system statistics');
+      
+      // Get employee statistics
+      const employeeStats = await EmployeeService.getEmployeeStats();
+      console.log('AdminDash: Employee statistics:', employeeStats);
+      
+      // Get task statistics
+      const taskStats = await TaskService.getAdminTaskStats();
+      console.log('AdminDash: Task statistics:', taskStats);
+      
+      // Update system stats with real data
+      setSystemStats({
+        totalEmployees: employeeStats.totalEmployees || 0,
+        activeNow: employeeStats.activeEmployees || 0,
+        completedTasks: taskStats.completedTasks || 0,
+        ongoingTasks: taskStats.ongoingTasks || 0,
+        newTasks: taskStats.newTasks || 0,
+        tasksDueSoon: taskStats.tasksDueSoon || 0,
+        overdueTasks: taskStats.overdueTasks || 0,
+        newEmployees: employeeStats.newEmployees || 0
+      });
+      
+      console.log('AdminDash: Updated system statistics');
+    } catch (error) {
+      console.error('AdminDash: Error fetching system statistics:', error);
+    }
+  };
+  
+  // Fetch employees
+  const fetchEmployees = async () => {
+    try {
+      console.log('AdminDash: Fetching employees');
+      
+      // Get all employees
+      const allEmployees = await EmployeeService.getAllEmployees();
+      console.log('AdminDash: Employees data:', allEmployees);
+      
+      if (allEmployees && Array.isArray(allEmployees) && allEmployees.length > 0) {
+        // Format employee data
+        const formattedEmployees = allEmployees.map(emp => ({
+          id: emp.id || emp._id || Math.random().toString(36).substring(2, 9),
+          name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown',
+          position: emp.position || emp.jobTitle || 'Employee',
+          department: emp.department || 'General',
+          status: emp.status || (Math.random() > 0.7 ? 'online' : Math.random() > 0.5 ? 'away' : 'offline'),
+          employeeId: emp.employeeId || emp.id || 'N/A',
+          email: emp.email || '',
+          avatar: emp.avatar || null
+        }));
+        
+        setEmployees(formattedEmployees);
+        console.log('AdminDash: Updated employees with real data');
+      } else {
+        // Fallback to mock data
+        console.log('AdminDash: No employee data found, using mock data');
+        setEmployees([
+          { id: 1, name: 'John Doe', position: 'Frontend Developer', department: 'Tech', status: 'online', employeeId: '1A002' },
+          { id: 2, name: 'Sarah Smith', position: 'HR Manager', department: 'HR', status: 'online', employeeId: '1A003' },
+          { id: 3, name: 'Mike Johnson', position: 'UI/UX Designer', department: 'Tech', status: 'away', employeeId: '1A004' },
+          { id: 4, name: 'Emily Davis', position: 'Product Manager', department: 'Marketing', status: 'offline', employeeId: '1A005' },
+          { id: 5, name: 'David Wilson', position: 'Accountant', department: 'Finance', status: 'online', employeeId: '1A006' },
+          { id: 6, name: 'Jennifer Lee', position: 'Backend Developer', department: 'Tech', status: 'online', employeeId: '1A007' },
+          { id: 7, name: 'Robert Brown', position: 'DevOps Engineer', department: 'Tech', status: 'away', employeeId: '1A008' },
+          { id: 8, name: 'Lisa Wang', position: 'Data Analyst', department: 'Tech', status: 'online', employeeId: '1A009' }
+        ]);
+      }
+    } catch (error) {
+      console.error('AdminDash: Error fetching employees:', error);
+      
+      // Fallback to mock data
+      setEmployees([
+        { id: 1, name: 'John Doe', position: 'Frontend Developer', department: 'Tech', status: 'online', employeeId: '1A002' },
+        { id: 2, name: 'Sarah Smith', position: 'HR Manager', department: 'HR', status: 'online', employeeId: '1A003' },
+        { id: 3, name: 'Mike Johnson', position: 'UI/UX Designer', department: 'Tech', status: 'away', employeeId: '1A004' },
+        { id: 4, name: 'Emily Davis', position: 'Product Manager', department: 'Marketing', status: 'offline', employeeId: '1A005' },
+        { id: 5, name: 'David Wilson', position: 'Accountant', department: 'Finance', status: 'online', employeeId: '1A006' },
+        { id: 6, name: 'Jennifer Lee', position: 'Backend Developer', department: 'Tech', status: 'online', employeeId: '1A007' },
+        { id: 7, name: 'Robert Brown', position: 'DevOps Engineer', department: 'Tech', status: 'away', employeeId: '1A008' },
+        { id: 8, name: 'Lisa Wang', position: 'Data Analyst', department: 'Tech', status: 'online', employeeId: '1A009' }
+      ]);
+    }
+  };
+
   // Fetch admin info from the backend
   useEffect(() => {
     const fetchAdminInfo = async () => {
       try {
         const token = localStorage.getItem('token');
         console.log('Token:', token ? token.substring(0, 20) + '...' : 'No token'); // Only log part of the token for security
+        
+        // Fetch system statistics
+        await fetchSystemStats();
+        
+        // Fetch employees
+        await fetchEmployees();
 
         const response = await fetch('http://localhost:8080/api/dashboard', {
           method: 'GET',
@@ -324,7 +421,7 @@ const AdminDash = () => {
         <section className="stats-section">
           <div className="section-header">
             <h2>System Overview</h2>
-            <button>View Details</button>
+            <button onClick={() => fetchSystemStats()}>Refresh Data</button>
           </div>
           
           <div className="stats-grid">
@@ -336,26 +433,44 @@ const AdminDash = () => {
             
             <div className="stat-card" style={{ borderLeftColor: '#4318FF' }}>
               <span className="stat-icon" role="img" aria-label="Active">🟢</span>
-              <h3>Active Now</h3>
+              <h3>Active Employees</h3>
               <p>{systemStats.activeNow}</p>
             </div>
             
             <div className="stat-card" style={{ borderLeftColor: '#FFB547' }}>
-              <span className="stat-icon" role="img" aria-label="Approvals">✓</span>
-              <h3>Pending Approvals</h3>
-              <p>{systemStats.pendingApprovals}</p>
+              <span className="stat-icon" role="img" aria-label="New Employees">🆕</span>
+              <h3>New Employees</h3>
+              <p>{systemStats.newEmployees}</p>
             </div>
             
             <div className="stat-card" style={{ borderLeftColor: '#4318FF' }}>
-              <span className="stat-icon" role="img" aria-label="Leaves">🗓️</span>
-              <h3>Pending Leaves</h3>
-              <p>{systemStats.pendingLeaves}</p>
+              <span className="stat-icon" role="img" aria-label="Completed Tasks">✅</span>
+              <h3>Completed Tasks</h3>
+              <p>{systemStats.completedTasks}</p>
+            </div>
+            
+            <div className="stat-card" style={{ borderLeftColor: '#FFB547' }}>
+              <span className="stat-icon" role="img" aria-label="Ongoing Tasks">🔄</span>
+              <h3>Ongoing Tasks</h3>
+              <p>{systemStats.ongoingTasks}</p>
+            </div>
+            
+            <div className="stat-card" style={{ borderLeftColor: '#05CD99' }}>
+              <span className="stat-icon" role="img" aria-label="New Tasks">📋</span>
+              <h3>New Tasks</h3>
+              <p>{systemStats.newTasks}</p>
+            </div>
+            
+            <div className="stat-card" style={{ borderLeftColor: '#FFB547' }}>
+              <span className="stat-icon" role="img" aria-label="Tasks Due Soon">⏰</span>
+              <h3>Tasks Due Soon</h3>
+              <p>{systemStats.tasksDueSoon}</p>
             </div>
             
             <div className="stat-card" style={{ borderLeftColor: '#FF5252' }}>
-              <span className="stat-icon" role="img" aria-label="Positions">🔍</span>
-              <h3>Open Positions</h3>
-              <p>{systemStats.openPositions}</p>
+              <span className="stat-icon" role="img" aria-label="Overdue Tasks">⚠️</span>
+              <h3>Overdue Tasks</h3>
+              <p>{systemStats.overdueTasks}</p>
             </div>
           </div>
         </section>
@@ -565,17 +680,21 @@ const AdminDash = () => {
 
         {/* Employee Quick View */}
         <div className="employee-quick-view">
-          <h3>Employee Quick View</h3>
+          <div className="section-header">
+            <h3>Employee Quick View</h3>
+            <button onClick={() => fetchEmployees()}>Refresh</button>
+          </div>
           
           <div className="employee-search">
             <input type="text" placeholder="Search employees..." />
           </div>
           
           <div className="employee-list">
-            {employees.map(employee => (
+            {employees.slice(0, 8).map(employee => (
               <div key={employee.id} className="employee-item">
                 <div className={`employee-avatar ${employee.status}`}>
-                  <img src={defaultAvatar} alt={employee.name} className="member-avatar" />
+                  <img src={employee.avatar || defaultAvatar} alt={employee.name} className="member-avatar" />
+                  <span className={`status-indicator ${employee.status}`}></span>
                 </div>
                 <div className="employee-details">
                   <h4>{employee.name}</h4>
@@ -585,12 +704,18 @@ const AdminDash = () => {
                   </div>
                   <small>{employee.department}</small>
                 </div>
-                <button className="employee-action">...</button>
+                <div className="employee-actions">
+                  <button className="employee-action" title="View Profile">👤</button>
+                  <button className="employee-action" title="Assign Task">✓</button>
+                  <button className="employee-action" title="Send Message">✉️</button>
+                </div>
               </div>
             ))}
           </div>
           
-          <button className="view-all-employees">View All Employees</button>
+          <button className="view-all-employees" onClick={() => navigate('/admin/employees')}>
+            View All Employees ({employees.length})
+          </button>
         </div>
 
         {/* Today's Summary */}
