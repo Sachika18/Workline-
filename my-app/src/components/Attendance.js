@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AttendanceSummary from './AttendanceSummary';
-import { FiHome, FiUser, FiSettings, FiArrowLeft } from 'react-icons/fi';
+import { FiHome, FiUser, FiSettings, FiArrowLeft, FiAlertCircle } from 'react-icons/fi';
 import './Dashboard.css';
 import axios from 'axios';
 import Navbar from './Navbar';
@@ -18,10 +18,13 @@ const Attendance = () => {
   const [submitMessage, setSubmitMessage] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [userLeaves, setUserLeaves] = useState([]);
+  const [leaveBalance, setLeaveBalance] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Fetch user's leave applications when component mounts
+    // Fetch user's leave applications and balance when component mounts
     fetchUserLeaves();
+    fetchLeaveBalance();
   }, []);
 
   const fetchUserLeaves = async () => {
@@ -41,6 +44,29 @@ const Attendance = () => {
       setUserLeaves(response.data);
     } catch (error) {
       console.error('Error fetching leave data:', error);
+    }
+  };
+  
+  const fetchLeaveBalance = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      const response = await axios.get('http://localhost:8080/api/leaves/balance', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      setLeaveBalance(response.data);
+    } catch (error) {
+      console.error('Error fetching leave balance:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -80,8 +106,9 @@ const Attendance = () => {
         reason: ''
       });
       
-      // Refresh leave list
+      // Refresh leave list and balance
       fetchUserLeaves();
+      fetchLeaveBalance();
     } catch (error) {
       setLeaveSubmitted(false);
       setSubmitError(error.response?.data?.error || 'Failed to submit leave application');
@@ -133,6 +160,65 @@ const Attendance = () => {
                 <p style={{ fontSize: '0.9rem' }}>Apply for your leave here.</p>
               </div>
             </section>
+            
+            {/* Leave Balance Section */}
+            {leaveBalance && (
+              <div style={{ 
+                marginBottom: '1.5rem', 
+                background: '#f8f9fa', 
+                borderRadius: '8px', 
+                padding: '1rem',
+                border: '1px solid #e9ecef'
+              }}>
+                <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', fontWeight: 600 }}>
+                  Your Leave Balance
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+                  <div style={{ 
+                    padding: '0.75rem', 
+                    background: 'white', 
+                    borderRadius: '6px',
+                    border: '1px solid #e9ecef',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '0.8rem', color: '#6c757d', marginBottom: '0.25rem' }}>Sick Leave</div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#05CD99' }}>
+                      {leaveBalance.sickLeave.remaining}/{leaveBalance.sickLeave.total}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#6c757d' }}>Remaining</div>
+                  </div>
+                  
+                  <div style={{ 
+                    padding: '0.75rem', 
+                    background: 'white', 
+                    borderRadius: '6px',
+                    border: '1px solid #e9ecef',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '0.8rem', color: '#6c757d', marginBottom: '0.25rem' }}>Casual Leave</div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#4318FF' }}>
+                      {leaveBalance.casualLeave.remaining}/{leaveBalance.casualLeave.total}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#6c757d' }}>Remaining</div>
+                  </div>
+                  
+                  <div style={{ 
+                    padding: '0.75rem', 
+                    background: 'white', 
+                    borderRadius: '6px',
+                    border: '1px solid #e9ecef',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '0.8rem', color: '#6c757d', marginBottom: '0.25rem' }}>Earned Leave</div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#FFB547' }}>
+                      {leaveBalance.earnedLeave.remaining}/{leaveBalance.earnedLeave.total}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#6c757d' }}>Remaining</div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <form className="attendance-summary" onSubmit={handleLeaveSubmit} style={{ boxShadow: 'var(--shadow-sm)' }}>
               <div style={{ marginBottom: '1rem' }}>
                 <label htmlFor="from" style={{ display: 'block', marginBottom: 4, color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.9rem' }}>From</label>

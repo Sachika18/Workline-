@@ -23,6 +23,7 @@ const AdminDash = () => {
     totalEmployees: 73,
     activeNow: 52,
     pendingApprovals: 7,
+    pendingLeaves: 5,
     openPositions: 5
   });
   const [recentActivity, setRecentActivity] = useState([
@@ -190,6 +191,11 @@ const AdminDash = () => {
               </Link>
             </li>
             <li>
+              <Link to="/admin/leaves" style={{ color: 'inherit', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+                <span className="menu-icon">🗓️</span> Leave Management
+              </Link>
+            </li>
+            <li>
               <Link to="/admintask" style={{ color: 'inherit', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
                 <span className="menu-icon">✓</span> Tasks
               </Link>
@@ -302,6 +308,12 @@ const AdminDash = () => {
               <span className="stat-icon" role="img" aria-label="Approvals">✓</span>
               <h3>Pending Approvals</h3>
               <p>{systemStats.pendingApprovals}</p>
+            </div>
+            
+            <div className="stat-card" style={{ borderLeftColor: '#4318FF' }}>
+              <span className="stat-icon" role="img" aria-label="Leaves">🗓️</span>
+              <h3>Pending Leaves</h3>
+              <p>{systemStats.pendingLeaves}</p>
             </div>
             
             <div className="stat-card" style={{ borderLeftColor: '#FF5252' }}>
