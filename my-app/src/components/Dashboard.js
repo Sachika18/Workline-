@@ -91,6 +91,8 @@ const Dashboard = () => {
           }
 
           userData = await response.json();
+          console.log("Dashboard user data:", userData);
+          console.log("Employee ID:", userData.employeeId);
           setUser(userData);
         } catch (userError) {
           console.error('Error fetching user data:', userError);
@@ -102,6 +104,7 @@ const Dashboard = () => {
             lastName: 'User',
             email: 'demo.user@example.com',
             position: 'Employee',
+            employeeId: '1A999', // Mock employee ID
             avatar: null
           };
           setUser(userData);
@@ -248,6 +251,7 @@ const Dashboard = () => {
           lastName: 'User',
           email: 'demo.user@example.com',
           position: 'Employee',
+          employeeId: '1A999', // Mock employee ID
           avatar: null
         });
         
@@ -585,7 +589,10 @@ const Dashboard = () => {
             </Link>
             <div className="user-info">
               <span>{user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'User'}</span>
-              <span className="role-badge">{user.position || 'Employee'}</span>
+              <div className="user-details">
+                <span className="role-badge">{user.position || 'Employee'}</span>
+                <span className="employee-id-badge">{user.employeeId || 'ID: Not assigned'}</span>
+              </div>
             </div>
             <img 
               onClick={() => navigate('/profile')}
@@ -600,6 +607,7 @@ const Dashboard = () => {
         <section className="welcome-section">
           <div className="welcome-text">
             <h1>Welcome back, {user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : 'User'}!</h1>
+            <p className="employee-id-welcome">Employee ID: {user.employeeId || 'Not assigned'}</p>
             <p>Let's make today productive and amazing.</p>
           </div>
           

@@ -41,6 +41,7 @@ public class AuthController {
             response.put("lastName", user.getLastName());
             response.put("email", user.getEmail());
             response.put("position", user.getPosition());
+            response.put("employeeId", user.getEmployeeId());
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {
@@ -67,6 +68,7 @@ public class AuthController {
             response.put("lastName", user.getLastName());
             response.put("email", user.getEmail());
             response.put("position", user.getPosition());
+            response.put("employeeId", user.getEmployeeId());
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {

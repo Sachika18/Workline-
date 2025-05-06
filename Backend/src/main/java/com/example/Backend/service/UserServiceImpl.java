@@ -94,7 +94,15 @@ public class UserServiceImpl implements UserService {
                     existingUser.setEmergencyContact(updatedUser.getEmergencyContact());
                 }
                 
-                // Don't update email or password here to maintain login integrity
+                // Don't update email, password, or employeeId here to maintain integrity
+                // If the user doesn't have an employeeId, generate one
+                if (existingUser.getEmployeeId() == null || existingUser.getEmployeeId().isEmpty()) {
+                    // Generate a simple employee ID based on the user's database ID
+                    String idStr = existingUser.getId();
+                    int idNum = Math.abs(idStr.hashCode() % 1000);
+                    existingUser.setEmployeeId(String.format("1A%03d", idNum));
+                    System.out.println("Generated employee ID: " + existingUser.getEmployeeId());
+                }
                 
                 System.out.println("Saving updated user profile");
                 return userRepository.save(existingUser);

@@ -25,6 +25,7 @@ public class User {
     private String password;
     private String position;
     private String avatar;
+    private String employeeId; // Unique employee ID (e.g., 1A001, 1A002, etc.)
     
     // Additional profile fields
     private String phoneNumber;

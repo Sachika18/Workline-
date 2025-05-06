@@ -266,6 +266,12 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--text-primary);
 }
 
+.user-details {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .role-badge {
   font-size: 0.8rem;
   color: var(--success);
@@ -273,6 +279,22 @@ h1, h2, h3, h4, h5, h6 {
   padding: 0.2rem 0.5rem;
   border-radius: 12px;
   display: inline-block;
+}
+
+.employee-id-badge {
+  font-size: 0.8rem;
+  color: var(--info);
+  background: var(--bg-lighter);
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  display: inline-block;
+}
+
+.employee-id-welcome {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+  font-weight: 500;
 }
 
 .avatar {

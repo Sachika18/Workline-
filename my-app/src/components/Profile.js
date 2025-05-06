@@ -4,16 +4,7 @@ import './Profile.css';
 import defaultAvatar from '../assets/avatar.png';
 import Navbar from './Navbar';
 
-// Function to format employee IDs to a readable format
-const formatEmployeeId = (id) => {
-  if (!id) return 'Not assigned';
-  
-  // Extract the first 5 characters of the ID and convert to a number
-  const numPart = parseInt(id.substring(0, 5), 16) % 1000;
-  
-  // Format as 1A001, 1A002, etc.
-  return `1A${numPart.toString().padStart(3, '0')}`;
-};
+// No longer needed as the backend now provides a formatted employee ID
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -68,6 +59,8 @@ const Profile = () => {
         }
 
         const data = await response.json();
+        console.log("Profile data received:", data);
+        console.log("Employee ID:", data.employeeId);
         setUser(data);
         setFormData({
           firstName: data.firstName || '',
@@ -86,7 +79,7 @@ const Profile = () => {
           dateOfBirth: data.dateOfBirth || '',
           joinDate: data.joinDate || '',
           emergencyContact: data.emergencyContact || '',
-          employeeId: formatEmployeeId(data.id) || '', // Format the employee ID
+          employeeId: data.employeeId || 'Not assigned', // Use the employeeId from the backend
           avatar: null
         });
         setPreviewImage(data.avatar || defaultAvatar);
@@ -288,7 +281,7 @@ const Profile = () => {
         dateOfBirth: user.dateOfBirth || '',
         joinDate: user.joinDate || '',
         emergencyContact: user.emergencyContact || '',
-        employeeId: formatEmployeeId(user.id) || '', // Format the employee ID
+        employeeId: user.employeeId || 'Not assigned', // Use the employeeId from the backend
         avatar: null
       });
       setPreviewImage(user.avatar || defaultAvatar);
@@ -349,7 +342,7 @@ const Profile = () => {
             )}
           </div>
           <div className="employee-id">
-            <span>Employee ID: {formData.employeeId}</span>
+            <span>Employee ID: {formData.employeeId || 'Not assigned'}</span>
           </div>
         </div>
 

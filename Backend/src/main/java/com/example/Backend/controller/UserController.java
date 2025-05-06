@@ -39,6 +39,7 @@ public class UserController {
                 sanitizedUser.setPosition(user.getPosition());
                 sanitizedUser.setAvatar(user.getAvatar());
                 sanitizedUser.setDepartment(user.getDepartment());
+                sanitizedUser.setEmployeeId(user.getEmployeeId());
                 return sanitizedUser;
             })
             .collect(Collectors.toList());
@@ -83,6 +84,7 @@ public class UserController {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
             
             System.out.println("User found: " + user.getFirstName() + " " + user.getLastName());
+            System.out.println("Employee ID: " + user.getEmployeeId());
             
             // Remove sensitive information
             user.setPassword(null);
