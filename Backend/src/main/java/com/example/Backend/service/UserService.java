@@ -9,4 +9,5 @@ public interface UserService {
     Optional<User> findById(String id);
     Optional<User> findByEmail(String email);
     List<User> findAllUsers();
+    User updateUserProfile(String userId, User updatedUser);
 }

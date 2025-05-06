@@ -55,9 +55,12 @@ const taskStorage = {
         task.createdDate = new Date().toISOString();
       }
       
-      // Ensure status is set
+      // Ensure status is set with correct enum value
       if (!task.status) {
-        task.status = 'ongoing';
+        task.status = 'PENDING'; // Use uppercase enum values as expected by backend
+      } else if (typeof task.status === 'string') {
+        // Convert to uppercase to match backend enum
+        task.status = task.status.toUpperCase();
       }
       
       // Check if task with this ID already exists

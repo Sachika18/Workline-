@@ -25,6 +25,20 @@ public class User {
     private String password;
     private String position;
     private String avatar;
+    
+    // Additional profile fields
+    private String phoneNumber;
+    private String address;
+    private String city;
+    private String state;
+    private String zipCode;
+    private String country;
+    private String bio;
+    private String skills;
+    private String department;
+    private String dateOfBirth;
+    private String joinDate;
+    private String emergencyContact;
 
     // Constructor for registration
     public User(String firstName, String lastName, String email, String password, String position) {
@@ -33,7 +47,5 @@ public class User {
         this.email = email;
         this.password = password;
         this.position = position;
-
-
     }
 }

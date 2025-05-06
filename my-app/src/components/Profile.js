@@ -54,12 +54,12 @@ const Profile = () => {
           firstName: data.firstName || '',
           lastName: data.lastName || '',
           email: data.email || '',
-          phone: data.phone || '',
+          phone: data.phoneNumber || '', // Map from backend's phoneNumber field
           department: data.department || '',
           position: data.position || '',
           address: data.address || '',
           bio: data.bio || '',
-          employeeId: data.employeeId || '',
+          employeeId: data.id || '', // Use ID as employee ID if not available
           avatar: null
         });
         setPreviewImage(data.avatar || defaultAvatar);
@@ -123,60 +123,107 @@ const Profile = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      const formDataToSend = new FormData();
       
-      // Append all form data to FormData object
-      Object.keys(formData).forEach(key => {
-        if (key === 'avatar' && formData[key] instanceof File) {
-          formDataToSend.append('avatar', formData[key]);
-        } else if (formData[key] !== null && formData[key] !== undefined && key !== 'email') {
-          // Skip email as it shouldn't be updated
-          formDataToSend.append(key, formData[key]);
-        }
-      });
+      // Create a profile data object to send
+      const profileData = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        position: formData.position,
+        phoneNumber: formData.phone, // Map to the correct field name in backend
+        department: formData.department,
+        address: formData.address,
+        bio: formData.bio,
+        // Add other fields that match the backend User model
+        city: '',
+        state: '',
+        zipCode: '',
+        country: '',
+        skills: '',
+        dateOfBirth: '',
+        joinDate: '',
+        emergencyContact: ''
+      };
 
-      // Updated endpoint to match the backend
-      const response = await fetch('http://localhost:8080/api/user/profile', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: formDataToSend
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update profile');
+      // Handle avatar separately if it's a file
+      if (formData.avatar instanceof File) {
+        // Convert file to base64 string
+        const reader = new FileReader();
+        reader.readAsDataURL(formData.avatar);
+        reader.onloadend = async () => {
+          const base64data = reader.result;
+          
+          // First update the profile data
+          await updateProfileData(token, profileData);
+          
+          // Then update the avatar
+          try {
+            console.log("Uploading profile picture...");
+            const avatarResponse = await fetch('http://localhost:8080/api/user/profile/avatar', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: `avatar=${encodeURIComponent(base64data)}`
+            });
+            
+            if (!avatarResponse.ok) {
+              throw new Error('Failed to update profile picture');
+            }
+            
+            const avatarData = await avatarResponse.json();
+            setPreviewImage(avatarData.avatar);
+            showStatusMessage('Profile and picture updated successfully!');
+          } catch (avatarError) {
+            console.error('Error updating avatar:', avatarError);
+            showStatusMessage('Profile updated but failed to update picture', true);
+          }
+        };
+      } else {
+        // Just update profile data without avatar
+        await updateProfileData(token, profileData);
       }
-
-      const updatedData = await response.json();
-      setUser(updatedData);
-      setIsEditing(false);
-      showStatusMessage('Profile updated successfully!');
-
-      // Update form data with new values
-      setFormData({
-        firstName: updatedData.firstName || '',
-        lastName: updatedData.lastName || '',
-        email: updatedData.email || '',
-        phone: updatedData.phone || '',
-        department: updatedData.department || '',
-        position: updatedData.position || '',
-        address: updatedData.address || '',
-        bio: updatedData.bio || '',
-        employeeId: updatedData.employeeId || '',
-        avatar: null
-      });
-      
-      // Update preview image
-      if (updatedData.avatar) {
-        setPreviewImage(updatedData.avatar);
-      }
-      
     } catch (error) {
       console.error('Error updating profile:', error);
       showStatusMessage(error.message || 'Failed to update profile', true);
     }
+  };
+  
+  // Helper function to update profile data
+  const updateProfileData = async (token, profileData) => {
+    console.log("Updating profile data:", profileData);
+    const response = await fetch('http://localhost:8080/api/user/profile', {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(profileData)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to update profile');
+    }
+
+    const updatedData = await response.json();
+    setUser(updatedData);
+    setIsEditing(false);
+    showStatusMessage('Profile updated successfully!');
+
+    // Update form data with new values
+    setFormData({
+      firstName: updatedData.firstName || '',
+      lastName: updatedData.lastName || '',
+      email: updatedData.email || '',
+      phone: updatedData.phoneNumber || '', // Map from the correct field name in backend
+      department: updatedData.department || '',
+      position: updatedData.position || '',
+      address: updatedData.address || '',
+      bio: updatedData.bio || '',
+      employeeId: updatedData.employeeId || '',
+      avatar: null
+    });
   };
 
   const handleCancel = () => {
@@ -186,12 +233,12 @@ const Profile = () => {
         firstName: user.firstName || '',
         lastName: user.lastName || '',
         email: user.email || '',
-        phone: user.phone || '',
+        phone: user.phoneNumber || '', // Map from backend's phoneNumber field
         department: user.department || '',
         position: user.position || '',
         address: user.address || '',
         bio: user.bio || '',
-        employeeId: user.employeeId || '',
+        employeeId: user.id || '', // Use ID as employee ID if not available
         avatar: null
       });
       setPreviewImage(user.avatar || defaultAvatar);

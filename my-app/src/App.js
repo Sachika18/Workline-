@@ -14,7 +14,6 @@ import Documents from './components/Documents';
 import EnhancedNotifications from './components/EnhancedNotifications';
 import AdminDash from './components/admindash';
 import AdminTaskPage from './components/Admintask';
-import AdminLeaveManagement from './components/AdminLeaveManagement';
 import Settings from './components/Settings';
   
 function App() {
@@ -30,9 +29,8 @@ function App() {
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/calendar" element={<Calendar />} />
         <Route path="/documents" element={<Documents />} />
-        <Route path="/admindash" element={<AdminDash />} />
-        <Route path="/admintask" element={<AdminTaskPage/>} />
-        <Route path="/admin/leaves" element={<AdminLeaveManagement />} />
+        <Route path='admindash' element={<AdminDash />} />
+        <Route path='/admintask' element={<AdminTaskPage/>} />
         <Route path="/enhancednotifications" element={<EnhancedNotifications />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/" element={<Navigate to="/login" />} />
