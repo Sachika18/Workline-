@@ -47,6 +47,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(new AntPathRequestMatcher("/api/auth/**")).permitAll()
                         .requestMatchers(new AntPathRequestMatcher("/api/users/**")).permitAll() // Allow access to user endpoints for testing
+                        .requestMatchers(new AntPathRequestMatcher("/api/user/**")).permitAll() // Allow access to user profile endpoints
                         .requestMatchers(new AntPathRequestMatcher("/api/tasks/**")).permitAll() // Allow access to task endpoints for testing
                         .requestMatchers(new AntPathRequestMatcher("/api/health/**")).permitAll() // Allow access to health endpoint
                         .anyRequest().authenticated()

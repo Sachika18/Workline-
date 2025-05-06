@@ -45,6 +45,7 @@ public class DashboardController {
             response.put("email", user.getEmail());
             response.put("position", user.getPosition());
             response.put("avatar", user.getAvatar());
+            response.put("employeeId", user.getEmployeeId());
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {

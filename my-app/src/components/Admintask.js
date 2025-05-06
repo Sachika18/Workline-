@@ -28,15 +28,16 @@ const AdminTaskPage = () => {
       let endpoint = '';
       
       try {
-        // Try the my-tasks endpoint first since it works
-        endpoint = '/tasks/my-tasks';
+        // For admin, we should use the base /tasks endpoint first to get ALL tasks
+        endpoint = '/tasks';
         console.log('Trying endpoint:', endpoint);
         tasksResponse = await fetchApi.get(endpoint);
-      } catch (myTasksErr) {
-        console.log('my-tasks endpoint failed, trying base endpoint');
+      } catch (tasksErr) {
+        console.log('Base tasks endpoint failed:', tasksErr);
+        console.log('Trying my-tasks endpoint as fallback');
         
-        // Then try the base endpoint
-        endpoint = '/tasks';
+        // Then try the my-tasks endpoint as fallback
+        endpoint = '/tasks/my-tasks';
         console.log('Trying endpoint:', endpoint);
         tasksResponse = await fetchApi.get(endpoint);
       }
@@ -44,9 +45,34 @@ const AdminTaskPage = () => {
       console.log(`Tasks refresh response from ${endpoint}:`, tasksResponse);
       
       if (Array.isArray(tasksResponse)) {
+        // If we got tasks, update the state
         setTasks(tasksResponse);
+        
+        // Also save to localStorage for offline access
+        try {
+          localStorage.setItem('workline_admin_tasks', JSON.stringify(tasksResponse));
+          console.log('Saved admin tasks to localStorage');
+        } catch (storageErr) {
+          console.error('Error saving tasks to localStorage:', storageErr);
+        }
       } else {
         console.error('Invalid tasks data format:', tasksResponse);
+        
+        // Try to get tasks from localStorage
+        try {
+          const storedTasks = localStorage.getItem('workline_admin_tasks');
+          if (storedTasks) {
+            const parsedTasks = JSON.parse(storedTasks);
+            if (Array.isArray(parsedTasks) && parsedTasks.length > 0) {
+              console.log('Using tasks from localStorage:', parsedTasks);
+              setTasks(parsedTasks);
+              return;
+            }
+          }
+        } catch (localErr) {
+          console.error('Error getting tasks from localStorage:', localErr);
+        }
+        
         // Don't overwrite existing tasks with mock data on refresh
         if (tasks.length === 0) {
           setTasks(mockTasks);
@@ -54,6 +80,22 @@ const AdminTaskPage = () => {
       }
     } catch (taskErr) {
       console.error('Error refreshing tasks:', taskErr);
+      
+      // Try to get tasks from localStorage
+      try {
+        const storedTasks = localStorage.getItem('workline_admin_tasks');
+        if (storedTasks) {
+          const parsedTasks = JSON.parse(storedTasks);
+          if (Array.isArray(parsedTasks) && parsedTasks.length > 0) {
+            console.log('Using tasks from localStorage after error:', parsedTasks);
+            setTasks(parsedTasks);
+            return;
+          }
+        }
+      } catch (localErr) {
+        console.error('Error getting tasks from localStorage:', localErr);
+      }
+      
       // Don't overwrite existing tasks with mock data on refresh
       if (tasks.length === 0) {
         setTasks(mockTasks);
@@ -63,6 +105,115 @@ const AdminTaskPage = () => {
 
   // Fetch users and tasks on component mount
   useEffect(() => {
+    // First, clean up any invalid task status values in localStorage
+    try {
+      console.log('Cleaning up localStorage task status values...');
+      const storedTasks = localStorage.getItem('workline_admin_tasks');
+      const tasksJson = localStorage.getItem('workline_tasks');
+      
+      // Fix admin tasks
+      if (storedTasks) {
+        let adminTasks = JSON.parse(storedTasks);
+        let modified = false;
+        
+        adminTasks = adminTasks.map(task => {
+          if (task.status) {
+            const oldStatus = task.status;
+            // Convert to uppercase and ensure it's a valid enum
+            let newStatus = task.status.toUpperCase();
+            
+            // Map any invalid statuses to valid ones
+            if (newStatus === 'ONGOING') newStatus = 'IN_PROGRESS';
+            if (!['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'CANCELED'].includes(newStatus)) {
+              newStatus = 'PENDING';
+            }
+            
+            if (oldStatus !== newStatus) {
+              modified = true;
+              console.log(`Fixed task status: ${oldStatus} -> ${newStatus}`);
+              return { ...task, status: newStatus };
+            }
+          }
+          return task;
+        });
+        
+        if (modified) {
+          localStorage.setItem('workline_admin_tasks', JSON.stringify(adminTasks));
+          console.log('Updated admin tasks in localStorage with fixed status values');
+        }
+      }
+      
+      // Fix all tasks
+      if (tasksJson) {
+        let allTasks = JSON.parse(tasksJson);
+        let modified = false;
+        
+        allTasks = allTasks.map(task => {
+          if (task.status) {
+            const oldStatus = task.status;
+            // Convert to uppercase and ensure it's a valid enum
+            let newStatus = task.status.toUpperCase();
+            
+            // Map any invalid statuses to valid ones
+            if (newStatus === 'ONGOING') newStatus = 'IN_PROGRESS';
+            if (!['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'CANCELED'].includes(newStatus)) {
+              newStatus = 'PENDING';
+            }
+            
+            if (oldStatus !== newStatus) {
+              modified = true;
+              console.log(`Fixed task status: ${oldStatus} -> ${newStatus}`);
+              return { ...task, status: newStatus };
+            }
+          }
+          return task;
+        });
+        
+        if (modified) {
+          localStorage.setItem('workline_tasks', JSON.stringify(allTasks));
+          console.log('Updated all tasks in localStorage with fixed status values');
+        }
+      }
+      
+      // Check for individual task status updates
+      const allKeys = Object.keys(localStorage);
+      const taskStatusKeys = allKeys.filter(key => key.startsWith('task_status_'));
+      
+      if (taskStatusKeys.length > 0) {
+        console.log(`Found ${taskStatusKeys.length} individual task status updates to fix`);
+        
+        taskStatusKeys.forEach(key => {
+          try {
+            const taskStatusJson = localStorage.getItem(key);
+            if (taskStatusJson) {
+              const taskStatus = JSON.parse(taskStatusJson);
+              if (taskStatus && taskStatus.status) {
+                const oldStatus = taskStatus.status;
+                // Convert to uppercase and ensure it's a valid enum
+                let newStatus = taskStatus.status.toUpperCase();
+                
+                // Map any invalid statuses to valid ones
+                if (newStatus === 'ONGOING') newStatus = 'IN_PROGRESS';
+                if (!['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'CANCELED'].includes(newStatus)) {
+                  newStatus = 'PENDING';
+                }
+                
+                if (oldStatus !== newStatus) {
+                  taskStatus.status = newStatus;
+                  localStorage.setItem(key, JSON.stringify(taskStatus));
+                  console.log(`Fixed individual task status: ${oldStatus} -> ${newStatus}`);
+                }
+              }
+            }
+          } catch (parseErr) {
+            console.error(`Error fixing task status from ${key}:`, parseErr);
+          }
+        });
+      }
+    } catch (cleanupErr) {
+      console.error('Error cleaning up localStorage:', cleanupErr);
+    }
+    
     const fetchData = async () => {
       setLoading(true);
       console.log('Starting API calls...');
@@ -79,20 +230,19 @@ const AdminTaskPage = () => {
           console.log('Using mock user data as fallback');
           setUsers(mockUsers);
         } else {
-          // Try to fetch from dashboard first (for current user)
+          // Try to fetch all users first (admin should have access to all users)
           try {
-            const dashboardResponse = await fetchApi.get('/dashboard');
-            console.log('Dashboard response:', dashboardResponse);
+            const usersResponse = await fetchApi.get('/users');
+            console.log('Users response:', usersResponse);
             
-            // Then try to fetch all users
-            try {
-              const usersResponse = await fetchApi.get('/users');
-              console.log('Users response:', usersResponse);
-              
-              if (Array.isArray(usersResponse) && usersResponse.length > 0) {
-                setUsers(usersResponse);
-              } else {
-                // If users endpoint returns empty or invalid data, use current user + mock data
+            if (Array.isArray(usersResponse) && usersResponse.length > 0) {
+              setUsers(usersResponse);
+            } else {
+              // If users endpoint returns empty or invalid data, try dashboard endpoint
+              try {
+                const dashboardResponse = await fetchApi.get('/dashboard');
+                console.log('Dashboard response:', dashboardResponse);
+                
                 const currentUser = dashboardResponse;
                 if (currentUser && currentUser.id) {
                   // Combine current user with mock users (excluding duplicates)
@@ -104,10 +254,19 @@ const AdminTaskPage = () => {
                 } else {
                   setUsers(mockUsers);
                 }
+              } catch (dashboardErr) {
+                console.error('Error fetching dashboard data:', dashboardErr);
+                setUsers(mockUsers);
               }
-            } catch (usersErr) {
-              console.error('Error fetching all users:', usersErr);
-              // Use current user + mock data
+            }
+          } catch (usersErr) {
+            console.error('Error fetching all users:', usersErr);
+            
+            // Try dashboard endpoint as fallback
+            try {
+              const dashboardResponse = await fetchApi.get('/dashboard');
+              console.log('Dashboard response (fallback):', dashboardResponse);
+              
               const currentUser = dashboardResponse;
               if (currentUser && currentUser.id) {
                 const combinedUsers = [
@@ -118,39 +277,10 @@ const AdminTaskPage = () => {
               } else {
                 setUsers(mockUsers);
               }
-            }
-          } catch (dashboardErr) {
-            console.error('Error fetching dashboard data:', dashboardErr);
-            
-            // Log detailed error information
-            if (dashboardErr.status) {
-              console.error('Error status:', dashboardErr.status);
-              console.error('Error data:', dashboardErr.data);
-              
-              // If unauthorized, try to use mock data instead of redirecting
-              if (dashboardErr.status === 401 || dashboardErr.status === 403) {
-                console.log('Authentication error. Using mock data as fallback.');
-                setUsers(mockUsers);
-              } else {
-                // For other errors, try the users endpoint directly
-                try {
-                  const usersResponse = await fetchApi.get('/users');
-                  if (Array.isArray(usersResponse) && usersResponse.length > 0) {
-                    setUsers(usersResponse);
-                  } else {
-                    setUsers(mockUsers);
-                  }
-                } catch (finalUsersErr) {
-                  console.error('Final attempt to fetch users failed:', finalUsersErr);
-                  setUsers(mockUsers);
-                  errorMessage = 'Using demo mode due to server issues. Some features may be limited.';
-                }
-              }
-            } else {
-              // Network error or other issue
-              console.log('Network error. Using mock data as fallback.');
+            } catch (dashboardErr) {
+              console.error('Error fetching dashboard data:', dashboardErr);
               setUsers(mockUsers);
-              errorMessage = 'Using demo mode due to connection issues. Some features may be limited.';
+              errorMessage = 'Using demo mode due to server issues. Some features may be limited.';
             }
           }
         }
@@ -162,11 +292,51 @@ const AdminTaskPage = () => {
       
       // Try to fetch tasks data
       try {
+        // First check localStorage for cached tasks
+        try {
+          const storedTasks = localStorage.getItem('workline_admin_tasks');
+          if (storedTasks) {
+            const parsedTasks = JSON.parse(storedTasks);
+            if (Array.isArray(parsedTasks) && parsedTasks.length > 0) {
+              console.log('Using cached tasks from localStorage:', parsedTasks);
+              setTasks(parsedTasks);
+              
+              // Still fetch from API in the background to update cache
+              fetchTasks().catch(err => {
+                console.error('Background task refresh failed:', err);
+              });
+              
+              // Skip the loading state since we already have data
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (cacheErr) {
+          console.error('Error reading cached tasks:', cacheErr);
+        }
+        
+        // If no cached tasks, fetch from API
         await fetchTasks();
       } catch (taskErr) {
         console.error('Error in initial task fetch:', taskErr);
         
-        // Use mock tasks data
+        // Try localStorage one more time
+        try {
+          const storedTasks = localStorage.getItem('workline_admin_tasks');
+          if (storedTasks) {
+            const parsedTasks = JSON.parse(storedTasks);
+            if (Array.isArray(parsedTasks) && parsedTasks.length > 0) {
+              console.log('Using cached tasks after API error:', parsedTasks);
+              setTasks(parsedTasks);
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (finalCacheErr) {
+          console.error('Final cache read error:', finalCacheErr);
+        }
+        
+        // Use mock tasks data as last resort
         console.log('Using mock tasks data as fallback');
         setTasks(mockTasks);
         
@@ -186,6 +356,41 @@ const AdminTaskPage = () => {
     };
 
     fetchData();
+    
+    // Add a button to clear localStorage if needed
+    window.clearWorklineTasks = () => {
+      try {
+        localStorage.removeItem('workline_tasks');
+        localStorage.removeItem('workline_admin_tasks');
+        
+        // Also clear individual task status updates
+        const allKeys = Object.keys(localStorage);
+        const taskStatusKeys = allKeys.filter(key => key.startsWith('task_status_'));
+        
+        taskStatusKeys.forEach(key => {
+          localStorage.removeItem(key);
+        });
+        
+        console.log('Cleared all task data from localStorage');
+        alert('Task data cleared. Please refresh the page.');
+      } catch (err) {
+        console.error('Error clearing localStorage:', err);
+        alert('Error clearing task data: ' + err.message);
+      }
+    };
+    
+    // Set up a periodic refresh for tasks
+    const refreshInterval = setInterval(() => {
+      console.log('Running periodic task refresh...');
+      fetchTasks().catch(err => {
+        console.error('Periodic task refresh failed:', err);
+      });
+    }, 30000); // Refresh every 30 seconds
+    
+    // Clean up interval on component unmount
+    return () => {
+      clearInterval(refreshInterval);
+    };
   }, []);  // Note: fetchTasks is defined in the component, so it doesn't need to be a dependency
 
   // Handle form input changes
@@ -212,6 +417,25 @@ const AdminTaskPage = () => {
       taskData.dueDate = defaultDueDate.toISOString().split('T')[0];
     }
     
+    // Add createdAt if not present
+    if (!taskData.createdAt) {
+      taskData.createdAt = new Date().toISOString();
+    }
+    
+    // Add status if not present or ensure it's in the correct format
+    if (!taskData.status) {
+      taskData.status = 'PENDING'; // Use uppercase for backend enum
+    } else if (typeof taskData.status === 'string') {
+      // Convert to uppercase to match backend enum
+      taskData.status = taskData.status.toUpperCase();
+      
+      // Ensure it's one of the valid enum values
+      if (!['PENDING', 'ONGOING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'CANCELED'].includes(taskData.status)) {
+        console.warn(`Invalid status value: ${taskData.status}, defaulting to PENDING`);
+        taskData.status = 'PENDING';
+      }
+    }
+    
     console.log('Submitting task with data:', taskData);
     
     try {
@@ -221,19 +445,54 @@ const AdminTaskPage = () => {
       
       // Add the new task to the tasks list immediately for better UX
       if (response && response.id) {
-        setTasks(prevTasks => [...prevTasks, response]);
+        // Create a complete task object with all necessary fields
+        const newTask = {
+          ...response,
+          // Ensure these fields exist even if the API doesn't return them
+          status: response.status || taskData.status || 'PENDING',
+          createdAt: response.createdAt || taskData.createdAt || new Date().toISOString(),
+          lastUpdated: new Date().toISOString()
+        };
+        
+        setTasks(prevTasks => [...prevTasks, newTask]);
+        
+        // Also update localStorage
+        try {
+          const storedTasks = localStorage.getItem('workline_admin_tasks');
+          let adminTasks = storedTasks ? JSON.parse(storedTasks) : [];
+          adminTasks.push(newTask);
+          localStorage.setItem('workline_admin_tasks', JSON.stringify(adminTasks));
+          console.log('Updated admin tasks in localStorage');
+        } catch (storageErr) {
+          console.error('Error updating localStorage:', storageErr);
+        }
       }
       
       // Add a small delay before refreshing to ensure the server has processed the request
       setTimeout(async () => {
         try {
+          console.log('Refreshing tasks after creation...');
           // Refresh tasks from the server to ensure we have the latest data
           await fetchTasks();
         } catch (refreshErr) {
           console.error('Error refreshing tasks after creation:', refreshErr);
           // The task was already added to the list above, so no need to handle this error further
+          
+          // Try to get tasks from localStorage as fallback
+          try {
+            const storedTasks = localStorage.getItem('workline_admin_tasks');
+            if (storedTasks) {
+              const parsedTasks = JSON.parse(storedTasks);
+              if (Array.isArray(parsedTasks) && parsedTasks.length > 0) {
+                console.log('Using tasks from localStorage after refresh error:', parsedTasks);
+                setTasks(parsedTasks);
+              }
+            }
+          } catch (localErr) {
+            console.error('Error getting tasks from localStorage:', localErr);
+          }
         }
-      }, 500);
+      }, 1500); // Increased delay to give server more time to process
       
       // Show success message
       setSuccessMessage('Task created successfully!');
@@ -263,6 +522,17 @@ const AdminTaskPage = () => {
       console.log('Created mock task:', mockTask);
       setTasks(prevTasks => [...prevTasks, mockTask]);
       
+      // Also update localStorage with the mock task
+      try {
+        const storedTasks = localStorage.getItem('workline_admin_tasks');
+        let adminTasks = storedTasks ? JSON.parse(storedTasks) : [];
+        adminTasks.push(mockTask);
+        localStorage.setItem('workline_admin_tasks', JSON.stringify(adminTasks));
+        console.log('Updated admin tasks in localStorage with mock task');
+      } catch (storageErr) {
+        console.error('Error updating localStorage:', storageErr);
+      }
+      
       // Show a modified success message
       setSuccessMessage('Task created in demo mode. Server connection issues detected.');
       setTimeout(() => setSuccessMessage(''), 2500);
@@ -281,15 +551,44 @@ const AdminTaskPage = () => {
   const handleDeleteTask = async (taskId) => {
     if (window.confirm('Are you sure you want to delete this task?')) {
       try {
+        // First, remove the task from local state immediately for better UX
+        setTasks(prevTasks => prevTasks.filter(task => 
+          task.id !== taskId && 
+          (task._id !== taskId) && 
+          (task.id?.toString() !== taskId?.toString())
+        ));
+        
+        // Also update localStorage
+        try {
+          const storedTasks = localStorage.getItem('workline_admin_tasks');
+          if (storedTasks) {
+            let adminTasks = JSON.parse(storedTasks);
+            adminTasks = adminTasks.filter(task => 
+              task.id !== taskId && 
+              (task._id !== taskId) && 
+              (task.id?.toString() !== taskId?.toString())
+            );
+            localStorage.setItem('workline_admin_tasks', JSON.stringify(adminTasks));
+            console.log('Updated admin tasks in localStorage after deletion');
+          }
+        } catch (storageErr) {
+          console.error('Error updating localStorage after deletion:', storageErr);
+        }
+        
         // Attempt to delete via API
         await fetchApi.delete(`/tasks/${taskId}`);
         console.log('Task deleted successfully:', taskId);
         
         // Add a small delay before refreshing to ensure the server has processed the request
         setTimeout(async () => {
-          // Refresh tasks from the server to ensure we have the latest data
-          await fetchTasks();
-        }, 500);
+          try {
+            // Refresh tasks from the server to ensure we have the latest data
+            await fetchTasks();
+          } catch (refreshErr) {
+            console.error('Error refreshing tasks after deletion:', refreshErr);
+            // Task was already removed from UI, so no further action needed
+          }
+        }, 1000); // Increased delay to give server more time
         
         setSuccessMessage('Task deleted successfully!');
         setTimeout(() => setSuccessMessage(''), 2000);
@@ -304,10 +603,7 @@ const AdminTaskPage = () => {
           console.error('Error message:', err.message);
         }
         
-        // Even if the API call fails, remove the task from the local state
-        // This provides a better user experience in case of server issues
-        setTasks(tasks.filter(task => task.id !== taskId));
-        
+        // Task was already removed from the local state above
         setSuccessMessage('Task removed in demo mode. Server connection issues detected.');
         setTimeout(() => setSuccessMessage(''), 2500);
       }
@@ -327,17 +623,40 @@ const AdminTaskPage = () => {
         return 'User #' + userId.substring(0, 5);
       }
       
-      const user = users.find(user => user.id === userId);
+      // Try to find user by exact ID match first
+      let user = users.find(user => user.id === userId);
+      
+      // If not found, try case-insensitive comparison (helps with MongoDB ObjectId vs string issues)
       if (!user) {
-        console.log('User not found with ID:', userId);
-        return 'User #' + userId.substring(0, 5);
+        user = users.find(user => 
+          user.id && userId && 
+          user.id.toString().toLowerCase() === userId.toString().toLowerCase()
+        );
       }
       
-      const firstName = user.firstName || '';
-      const lastName = user.lastName || '';
-      const fullName = `${firstName} ${lastName}`.trim();
+      // If still not found, try substring match (in case of truncated IDs)
+      if (!user && userId.length > 5) {
+        user = users.find(user => 
+          user.id && user.id.includes(userId) || 
+          (userId.includes(user.id))
+        );
+      }
       
-      return fullName || 'User #' + userId.substring(0, 5);
+      // If user is found, return their name
+      if (user) {
+        const firstName = user.firstName || '';
+        const lastName = user.lastName || '';
+        const fullName = `${firstName} ${lastName}`.trim();
+        
+        return fullName || 'User #' + userId.substring(0, 5);
+      }
+      
+      // Log the issue for debugging
+      console.log('User not found with ID:', userId);
+      console.log('Available users:', users.map(u => ({ id: u.id, name: `${u.firstName} ${u.lastName}` })));
+      
+      // Return a formatted user ID as fallback
+      return 'User #' + userId.substring(0, 5);
     } catch (error) {
       console.error('Error getting user name:', error);
       return 'User #' + (userId ? userId.substring(0, 5) : 'Unknown');
@@ -351,7 +670,23 @@ const AdminTaskPage = () => {
       
       // Handle case where status might be an object instead of a string
       const statusText = typeof status === 'string' ? status : String(status);
-      return statusText.charAt(0).toUpperCase() + statusText.slice(1).toLowerCase();
+      
+      // Convert from backend enum format (e.g., "PENDING") to display format (e.g., "Pending")
+      switch (statusText.toUpperCase()) {
+        case 'PENDING':
+          return 'Pending';
+        case 'ONGOING':
+        case 'IN_PROGRESS':
+          return 'In Progress';
+        case 'COMPLETED':
+          return 'Completed';
+        case 'CANCELLED':
+        case 'CANCELED':
+          return 'Cancelled';
+        default:
+          // For any other status, just capitalize first letter
+          return statusText.charAt(0).toUpperCase() + statusText.slice(1).toLowerCase();
+      }
     } catch (error) {
       console.error('Error formatting status:', error);
       return 'Pending';
@@ -458,8 +793,23 @@ const AdminTaskPage = () => {
             <tbody>
               {tasks.map(task => {
                 try {
-                  // Safely get status with fallback
-                  const status = task.status ? task.status.toLowerCase() : 'pending';
+                  // Log task for debugging
+                  console.log('Rendering task:', task);
+                  
+                  // Get task ID safely
+                  const taskId = task.id || task._id || '';
+                  
+                  // Safely get status with fallback - convert to lowercase for CSS classes
+                  let status = 'pending';
+                  if (task.status) {
+                    // Map backend enum values to CSS class names
+                    const statusUpper = task.status.toUpperCase();
+                    if (statusUpper === 'PENDING') status = 'pending';
+                    else if (statusUpper === 'ONGOING' || statusUpper === 'IN_PROGRESS') status = 'ongoing';
+                    else if (statusUpper === 'COMPLETED') status = 'completed';
+                    else if (statusUpper === 'CANCELLED' || statusUpper === 'CANCELED') status = 'cancelled';
+                    else status = task.status.toLowerCase();
+                  }
                   
                   // Safely format date with fallback
                   let formattedDate = 'No date';
@@ -471,10 +821,13 @@ const AdminTaskPage = () => {
                     console.error('Error formatting date:', dateError);
                   }
                   
+                  // Get assigned user safely
+                  const assignedTo = task.assignedTo || task.assignedToId || '';
+                  
                   return (
-                    <tr key={task.id || Math.random().toString()} className={`status-${status}`}>
+                    <tr key={taskId || Math.random().toString()} className={`status-${status}`}>
                       <td>{task.title || 'Untitled Task'}</td>
-                      <td>{getUserFullName(task.assignedTo)}</td>
+                      <td>{getUserFullName(assignedTo)}</td>
                       <td>{formattedDate}</td>
                       <td>
                         <span className={`status-badge ${status}`}>
@@ -484,7 +837,7 @@ const AdminTaskPage = () => {
                       <td>
                         <button 
                           className="delete-btn"
-                          onClick={() => handleDeleteTask(task.id)}
+                          onClick={() => handleDeleteTask(taskId)}
                         >
                           Delete
                         </button>

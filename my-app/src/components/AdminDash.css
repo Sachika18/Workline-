@@ -171,16 +171,39 @@
     flex-direction: column;
     text-align: right;
   }
-  
+
+  .user-details {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
   .role-badge {
     font-size: 0.75rem;
     color: #707EAE;
   }
-  
+
   .admin-role {
     font-size: 0.75rem;
     color: #4318FF;
     font-weight: 600;
+  }
+
+  .employee-id-badge {
+    font-size: 0.75rem;
+    color: #4318FF;
+    background: #f6f8fd;
+    padding: 2px 8px;
+    border-radius: 12px;
+    display: inline-block;
+  }
+
+  .employee-id-welcome {
+    font-size: 0.875rem;
+    color: #707EAE;
+    margin-bottom: 5px;
+    font-weight: 500;
   }
   
   .avatar {
@@ -575,13 +598,38 @@
   
   .employee-quick-view {
     margin-bottom: 20px;
+    background-color: #fff;
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
   }
-  
-  .employee-quick-view h3 {
-    font-size: 1rem;
+
+  .employee-quick-view .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+
+  .employee-quick-view .section-header h3 {
+    font-size: 1.1rem;
     font-weight: 600;
     color: #2B3674;
-    margin-bottom: 15px;
+    margin: 0;
+  }
+
+  .employee-quick-view .section-header button {
+    padding: 5px 10px;
+    background: none;
+    border: none;
+    color: #993899;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.2s ease;
+  }
+
+  .employee-quick-view .section-header button:hover {
+    color: #7B2CBF;
   }
   
   .employee-search {
@@ -607,23 +655,26 @@
   .employee-item {
     display: flex;
     align-items: center;
-    padding: 10px;
+    padding: 12px;
     border-radius: 12px;
     background-color: #f8f9fa;
-    transition: background-color 0.3s;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
   }
-  
+
   .employee-item:hover {
     background-color: #f6f8fd;
+    border-color: #e9ecef;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
   }
   
   .employee-avatar {
     position: relative;
-    margin-right: 10px;
+    margin-right: 15px;
   }
-  
-  .employee-avatar:after {
-    content: '';
+
+  .status-indicator {
     position: absolute;
     bottom: 0;
     right: 0;
@@ -633,16 +684,16 @@
     background-color: #ccc;
     border: 2px solid white;
   }
-  
-  .employee-avatar.online:after {
+
+  .status-indicator.online {
     background-color: #05CD99;
   }
-  
-  .employee-avatar.away:after {
+
+  .status-indicator.away {
     background-color: #FFB547;
   }
-  
-  .employee-avatar.offline:after {
+
+  .status-indicator.offline {
     background-color: #A3AED0;
   }
   
@@ -663,11 +714,26 @@
     color: #2B3674;
     margin-bottom: 2px;
   }
-  
-  .employee-details p {
+
+  .employee-info {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 2px;
+  }
+
+  .employee-id-small {
+    font-size: 0.7rem;
+    color: #4318FF;
+    background: #f6f8fd;
+    padding: 1px 6px;
+    border-radius: 8px;
+    display: inline-block;
+  }
+
+  .employee-position {
     font-size: 0.75rem;
     color: #707EAE;
-    margin-bottom: 2px;
   }
   
   .employee-details small {
@@ -675,30 +741,51 @@
     color: #A3AED0;
   }
   
+  .employee-actions {
+    display: flex;
+    gap: 5px;
+  }
+
   .employee-action {
     background: none;
     border: none;
-    font-size: 1.2rem;
+    font-size: 1rem;
     cursor: pointer;
     color: #707EAE;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+
+  .employee-action:hover {
+    background-color: #f0f0f0;
+    color: #4318FF;
   }
   
   .view-all-employees {
     width: 100%;
-    padding: 10px;
+    padding: 12px;
     background-color: transparent;
     border: 1px solid #e9ecef;
     border-radius: 12px;
-    color: #4318FF;
+    color: #993899;
     cursor: pointer;
     font-size: 0.875rem;
     font-weight: 600;
     transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-  
+
   .view-all-employees:hover {
-    background-color: #4318FF;
+    background-color: #993899;
     color: white;
+    border-color: #993899;
   }
   
   .todays-summary {

@@ -13,11 +13,13 @@ public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmployeeIdService employeeIdService;
 
     @Autowired
-    public AuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public AuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, EmployeeIdService employeeIdService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.employeeIdService = employeeIdService;
     }
 
     @Override
@@ -38,6 +40,9 @@ public class AuthServiceImpl implements AuthService {
 
         // Encode password before saving
         user.setPassword(passwordEncoder.encode(user.getPassword()));
+        
+        // Generate and set a unique employee ID
+        user.setEmployeeId(employeeIdService.generateEmployeeId());
 
         // Log the user being registered
         System.out.println("Registering user: " + user.getFirstName() + " " + user.getLastName() + 

@@ -35,6 +35,7 @@ function App() {
         <Route path="/admintask" element={<AdminTaskPage/>} />
         <Route path="/admin/leaves" element={<AdminLeaveManagement />} />
         <Route path="/admin/documents" element={<AdminDocuments />} />
+        <Route path="/admin/profile" element={<Profile />} />
         <Route path="/enhancednotifications" element={<EnhancedNotifications />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/" element={<Navigate to="/login" />} />

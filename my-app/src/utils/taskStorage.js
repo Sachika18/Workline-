@@ -1,9 +1,3 @@
-/**
- * Task Storage Utility
- * 
- * This utility provides methods to store and retrieve tasks from localStorage
- * when the backend API is not available or not responding.
- */
 
 const TASKS_STORAGE_KEY = 'workline_tasks';
 
@@ -55,9 +49,12 @@ const taskStorage = {
         task.createdDate = new Date().toISOString();
       }
       
-      // Ensure status is set
+      // Ensure status is set with correct enum value
       if (!task.status) {
-        task.status = 'ongoing';
+        task.status = 'PENDING'; // Use uppercase enum values as expected by backend
+      } else if (typeof task.status === 'string') {
+        // Convert to uppercase to match backend enum
+        task.status = task.status.toUpperCase();
       }
       
       // Check if task with this ID already exists
@@ -154,6 +151,22 @@ const taskStorage = {
     try {
       console.log(`taskStorage: Updating task ${taskId} status to ${status}`);
       
+      // Ensure status is in the correct format for backend
+      let normalizedStatus = status;
+      if (typeof status === 'string') {
+        // Convert to uppercase for backend enum compatibility
+        normalizedStatus = status.toUpperCase();
+        
+        // Map any invalid statuses to valid ones
+        if (normalizedStatus === 'ONGOING') normalizedStatus = 'IN_PROGRESS';
+        if (!['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'CANCELED'].includes(normalizedStatus)) {
+          console.warn(`taskStorage: Invalid status value: ${normalizedStatus}, defaulting to PENDING`);
+          normalizedStatus = 'PENDING';
+        }
+      }
+      
+      console.log(`taskStorage: Normalized status: ${normalizedStatus}`);
+      
       // Get all tasks
       const tasks = taskStorage.getAllTasks();
       console.log(`taskStorage: Found ${tasks.length} tasks in storage`);
@@ -172,7 +185,7 @@ const taskStorage = {
         // Create a minimal task object
         const newTask = {
           id: taskId,
-          status: status,
+          status: normalizedStatus,
           createdDate: new Date().toISOString(),
           lastUpdated: new Date().toISOString(),
           title: 'Task ' + taskId.substring(taskId.length - 5),
@@ -193,7 +206,7 @@ const taskStorage = {
       console.log(`taskStorage: Updating existing task at index ${taskIndex}`);
       tasks[taskIndex] = {
         ...tasks[taskIndex],
-        status: status,
+        status: normalizedStatus,
         lastUpdated: new Date().toISOString()
       };
       

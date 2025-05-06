@@ -296,7 +296,15 @@ class TaskService {
         console.log(`TaskService: Making API call to update task ${taskId} status to ${status}`);
         
         // Prepare the data for the API call - convert status to uppercase for API compatibility
-        const apiStatus = status.toUpperCase();
+        let apiStatus = status.toUpperCase();
+        
+        // Map any invalid statuses to valid ones
+        if (apiStatus === 'ONGOING') apiStatus = 'IN_PROGRESS';
+        if (!['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'CANCELED'].includes(apiStatus)) {
+          console.warn(`TaskService: Invalid status value: ${apiStatus}, defaulting to PENDING`);
+          apiStatus = 'PENDING';
+        }
+        
         const updateData = { status: apiStatus };
         
         // Make the API call
@@ -429,6 +437,173 @@ class TaskService {
       }
       
       return { success: true };
+    }
+  }
+  
+  // Get admin task statistics (for all tasks in the system)
+  async getAdminTaskStats() {
+    try {
+      console.log('TaskService: Getting admin task statistics');
+      
+      // Get all tasks in the system
+      let tasks = [];
+      try {
+        // First try to get all tasks from API
+        console.log('TaskService: Getting all tasks for admin statistics calculation');
+        const allTasks = await this.getAllTasks();
+        
+        if (allTasks && Array.isArray(allTasks)) {
+          tasks = allTasks;
+          console.log(`TaskService: Found ${tasks.length} tasks for admin statistics calculation`);
+        }
+      } catch (tasksError) {
+        console.error('TaskService: Error getting tasks for admin statistics:', tasksError);
+        
+        // Fallback to localStorage
+        tasks = taskStorage.getAllTasks() || [];
+        console.log(`TaskService: Using ${tasks.length} tasks from localStorage for admin statistics`);
+      }
+      
+      // Calculate stats from tasks
+      const completedTasks = tasks.filter(task => 
+        task.status === 'COMPLETED' || 
+        task.status === 'COMPLETE' || 
+        task.status === 'DONE'
+      ).length;
+      
+      const ongoingTasks = tasks.filter(task => 
+        task.status === 'ONGOING' || 
+        task.status === 'IN_PROGRESS' || 
+        task.status === 'IN-PROGRESS' || 
+        task.status === 'INPROGRESS'
+      ).length;
+      
+      const newTasks = tasks.filter(task => 
+        task.status === 'PENDING' || 
+        task.status === 'NEW' || 
+        task.status === 'TODO' || 
+        task.status === 'TO-DO' || 
+        task.status === 'ASSIGNED'
+      ).length;
+      
+      // Calculate tasks due soon (within the next 7 days)
+      const now = new Date();
+      const sevenDaysFromNow = new Date(now);
+      sevenDaysFromNow.setDate(now.getDate() + 7);
+      
+      const tasksDueSoon = tasks.filter(task => {
+        if (!task.dueDate) return false;
+        
+        const dueDate = new Date(task.dueDate);
+        return dueDate > now && dueDate <= sevenDaysFromNow && 
+               (task.status !== 'COMPLETED' && 
+                task.status !== 'COMPLETE' && 
+                task.status !== 'DONE');
+      }).length;
+      
+      // Calculate overdue tasks
+      const overdueTasks = tasks.filter(task => {
+        if (!task.dueDate) return false;
+        
+        const dueDate = new Date(task.dueDate);
+        return dueDate < now && 
+               (task.status !== 'COMPLETED' && 
+                task.status !== 'COMPLETE' && 
+                task.status !== 'DONE');
+      }).length;
+      
+      const stats = {
+        completedTasks,
+        ongoingTasks,
+        newTasks,
+        tasksDueSoon,
+        overdueTasks,
+        totalTasks: tasks.length
+      };
+      
+      console.log('TaskService: Calculated admin task stats:', stats);
+      return stats;
+    } catch (error) {
+      console.error('TaskService: Error getting admin task stats:', error);
+      
+      // Return default stats as fallback
+      return {
+        completedTasks: 0,
+        ongoingTasks: 0,
+        newTasks: 0,
+        tasksDueSoon: 0,
+        overdueTasks: 0,
+        totalTasks: 0
+      };
+    }
+  }
+
+  // Get task statistics for the current user
+  async getTaskStats() {
+    try {
+      console.log('TaskService: Getting task statistics');
+      
+      // Get all tasks for the current user
+      let tasks = [];
+      try {
+        // First try to get tasks from API
+        console.log('TaskService: Getting tasks for statistics calculation');
+        const myTasks = await this.getMyTasks();
+        
+        if (myTasks && Array.isArray(myTasks)) {
+          tasks = myTasks;
+          console.log(`TaskService: Found ${tasks.length} tasks for statistics calculation`);
+        }
+      } catch (tasksError) {
+        console.error('TaskService: Error getting tasks for statistics:', tasksError);
+        
+        // Fallback to localStorage
+        const userEmail = localStorage.getItem('userEmail');
+        tasks = taskStorage.getTasksByUser(userEmail) || [];
+        console.log(`TaskService: Using ${tasks.length} tasks from localStorage for statistics`);
+      }
+      
+      // Calculate stats from tasks
+      const completedTasks = tasks.filter(task => 
+        task.status === 'COMPLETED' || 
+        task.status === 'COMPLETE' || 
+        task.status === 'DONE'
+      ).length;
+      
+      const ongoingTasks = tasks.filter(task => 
+        task.status === 'ONGOING' || 
+        task.status === 'IN_PROGRESS' || 
+        task.status === 'IN-PROGRESS' || 
+        task.status === 'INPROGRESS'
+      ).length;
+      
+      const newTasks = tasks.filter(task => 
+        task.status === 'PENDING' || 
+        task.status === 'NEW' || 
+        task.status === 'TODO' || 
+        task.status === 'TO-DO' || 
+        task.status === 'ASSIGNED'
+      ).length;
+      
+      const stats = {
+        completedTasks,
+        ongoingTasks,
+        newTasks,
+        totalTasks: tasks.length
+      };
+      
+      console.log('TaskService: Calculated task stats:', stats);
+      return stats;
+    } catch (error) {
+      console.error('TaskService: Error getting task stats:', error);
+      
+      // Return default stats as fallback
+      return {
+        completedTasks: 0,
+        ongoingTasks: 0,
+        newTasks: 0,
+        totalTasks: 0
+      };
     }
   }
 }
