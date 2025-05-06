@@ -296,7 +296,15 @@ class TaskService {
         console.log(`TaskService: Making API call to update task ${taskId} status to ${status}`);
         
         // Prepare the data for the API call - convert status to uppercase for API compatibility
-        const apiStatus = status.toUpperCase();
+        let apiStatus = status.toUpperCase();
+        
+        // Map any invalid statuses to valid ones
+        if (apiStatus === 'ONGOING') apiStatus = 'IN_PROGRESS';
+        if (!['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'CANCELED'].includes(apiStatus)) {
+          console.warn(`TaskService: Invalid status value: ${apiStatus}, defaulting to PENDING`);
+          apiStatus = 'PENDING';
+        }
+        
         const updateData = { status: apiStatus };
         
         // Make the API call

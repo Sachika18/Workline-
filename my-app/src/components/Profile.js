@@ -4,6 +4,17 @@ import './Profile.css';
 import defaultAvatar from '../assets/avatar.png';
 import Navbar from './Navbar';
 
+// Function to format employee IDs to a readable format
+const formatEmployeeId = (id) => {
+  if (!id) return 'Not assigned';
+  
+  // Extract the first 5 characters of the ID and convert to a number
+  const numPart = parseInt(id.substring(0, 5), 16) % 1000;
+  
+  // Format as 1A001, 1A002, etc.
+  return `1A${numPart.toString().padStart(3, '0')}`;
+};
+
 const Profile = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
@@ -17,7 +28,15 @@ const Profile = () => {
     department: '',
     position: '',
     address: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    country: '',
     bio: '',
+    skills: '',
+    dateOfBirth: '',
+    joinDate: '',
+    emergencyContact: '',
     employeeId: '',
     avatar: null
   });
@@ -58,8 +77,16 @@ const Profile = () => {
           department: data.department || '',
           position: data.position || '',
           address: data.address || '',
+          city: data.city || '',
+          state: data.state || '',
+          zipCode: data.zipCode || '',
+          country: data.country || '',
           bio: data.bio || '',
-          employeeId: data.id || '', // Use ID as employee ID if not available
+          skills: data.skills || '',
+          dateOfBirth: data.dateOfBirth || '',
+          joinDate: data.joinDate || '',
+          emergencyContact: data.emergencyContact || '',
+          employeeId: formatEmployeeId(data.id) || '', // Format the employee ID
           avatar: null
         });
         setPreviewImage(data.avatar || defaultAvatar);
@@ -88,6 +115,7 @@ const Profile = () => {
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         showStatusMessage('Image size should be less than 5MB', true);
+        e.target.value = ''; // Reset the input
         return;
       }
       
@@ -95,6 +123,7 @@ const Profile = () => {
       const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
       if (!allowedTypes.includes(file.type)) {
         showStatusMessage('Only JPG, PNG, and GIF images are allowed', true);
+        e.target.value = ''; // Reset the input
         return;
       }
       
@@ -128,20 +157,20 @@ const Profile = () => {
       const profileData = {
         firstName: formData.firstName,
         lastName: formData.lastName,
-        position: formData.position,
+        position: formData.position, // This is the role (admin/staff) - not editable by user
         phoneNumber: formData.phone, // Map to the correct field name in backend
         department: formData.department,
         address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        zipCode: formData.zipCode,
+        country: formData.country,
         bio: formData.bio,
-        // Add other fields that match the backend User model
-        city: '',
-        state: '',
-        zipCode: '',
-        country: '',
-        skills: '',
-        dateOfBirth: '',
-        joinDate: '',
-        emergencyContact: ''
+        skills: formData.skills,
+        dateOfBirth: formData.dateOfBirth,
+        joinDate: formData.joinDate,
+        emergencyContact: formData.emergencyContact
+        // Note: We don't send employeeId back as it's just a formatted display of the user's ID
       };
 
       // Handle avatar separately if it's a file
@@ -173,6 +202,11 @@ const Profile = () => {
             
             const avatarData = await avatarResponse.json();
             setPreviewImage(avatarData.avatar);
+            // Reset the avatar field in formData to allow future uploads
+            setFormData(prev => ({
+              ...prev,
+              avatar: null
+            }));
             showStatusMessage('Profile and picture updated successfully!');
           } catch (avatarError) {
             console.error('Error updating avatar:', avatarError);
@@ -220,7 +254,15 @@ const Profile = () => {
       department: updatedData.department || '',
       position: updatedData.position || '',
       address: updatedData.address || '',
+      city: updatedData.city || '',
+      state: updatedData.state || '',
+      zipCode: updatedData.zipCode || '',
+      country: updatedData.country || '',
       bio: updatedData.bio || '',
+      skills: updatedData.skills || '',
+      dateOfBirth: updatedData.dateOfBirth || '',
+      joinDate: updatedData.joinDate || '',
+      emergencyContact: updatedData.emergencyContact || '',
       employeeId: updatedData.employeeId || '',
       avatar: null
     });
@@ -237,8 +279,16 @@ const Profile = () => {
         department: user.department || '',
         position: user.position || '',
         address: user.address || '',
+        city: user.city || '',
+        state: user.state || '',
+        zipCode: user.zipCode || '',
+        country: user.country || '',
         bio: user.bio || '',
-        employeeId: user.id || '', // Use ID as employee ID if not available
+        skills: user.skills || '',
+        dateOfBirth: user.dateOfBirth || '',
+        joinDate: user.joinDate || '',
+        emergencyContact: user.emergencyContact || '',
+        employeeId: formatEmployeeId(user.id) || '', // Format the employee ID
         avatar: null
       });
       setPreviewImage(user.avatar || defaultAvatar);
@@ -292,16 +342,15 @@ const Profile = () => {
                   type="file"
                   accept="image/*"
                   onChange={handleImageChange}
+                  onClick={(e) => e.target.value = null} // Reset the input on click
                   style={{ display: 'none' }}
                 />
               </div>
             )}
           </div>
-          {!isEditing && (
-            <div className="employee-id">
-              <span>Employee ID: {formData.employeeId || 'Not assigned'}</span>
-            </div>
-          )}
+          <div className="employee-id">
+            <span>Employee ID: {formData.employeeId}</span>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="profile-form">
@@ -358,42 +407,43 @@ const Profile = () => {
           <div className="form-row">
             <div className="form-group">
               <label>Department</label>
-              <input
-                type="text"
+              <select
                 name="department"
                 value={formData.department}
                 onChange={handleInputChange}
                 disabled={!isEditing}
-                placeholder="Your department"
-              />
+              >
+                <option value="">Select Department</option>
+                <option value="HR Department">HR Department</option>
+                <option value="Tech Department">Tech Department</option>
+                <option value="Finance Department">Finance Department</option>
+                <option value="Marketing Department">Marketing Department</option>
+              </select>
             </div>
 
             <div className="form-group">
-              <label>Position</label>
+              <label>Role</label>
               <input
                 type="text"
                 name="position"
                 value={formData.position}
                 onChange={handleInputChange}
-                disabled={!isEditing}
-                placeholder="Your job position"
+                disabled={true} // Always disabled - role cannot be changed
+                placeholder="Your role"
               />
             </div>
           </div>
 
-          {isEditing && (
-            <div className="form-group">
-              <label>Employee ID</label>
-              <input
-                type="text"
-                name="employeeId"
-                value={formData.employeeId}
-                onChange={handleInputChange}
-                disabled={true} // Usually, employee ID shouldn't be editable
-                placeholder="Your employee ID"
-              />
-            </div>
-          )}
+          <div className="form-group">
+            <label>Employee ID</label>
+            <input
+              type="text"
+              name="employeeId"
+              value={formData.employeeId}
+              disabled={true} // Employee ID is always read-only
+              placeholder="Your employee ID"
+            />
+          </div>
 
           <div className="form-group address">
             <label>Address</label>
@@ -406,6 +456,58 @@ const Profile = () => {
             />
           </div>
 
+          <div className="form-row">
+            <div className="form-group">
+              <label>City</label>
+              <input
+                type="text"
+                name="city"
+                value={formData.city}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+                placeholder="Your city"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>State</label>
+              <input
+                type="text"
+                name="state"
+                value={formData.state}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+                placeholder="Your state"
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Zip Code</label>
+              <input
+                type="text"
+                name="zipCode"
+                value={formData.zipCode}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+                placeholder="Your zip code"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Country</label>
+              <input
+                type="text"
+                name="country"
+                value={formData.country}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+                placeholder="Your country"
+              />
+            </div>
+          </div>
+
           <div className="form-group bio">
             <label>Bio</label>
             <textarea
@@ -415,6 +517,54 @@ const Profile = () => {
               disabled={!isEditing}
               placeholder="Tell us about yourself"
               rows="4"
+            />
+          </div>
+          
+          <div className="form-group">
+            <label>Skills</label>
+            <textarea
+              name="skills"
+              value={formData.skills}
+              onChange={handleInputChange}
+              disabled={!isEditing}
+              placeholder="Your skills (e.g., Java, React, Project Management)"
+              rows="2"
+            />
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Date of Birth</label>
+              <input
+                type="date"
+                name="dateOfBirth"
+                value={formData.dateOfBirth}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Join Date</label>
+              <input
+                type="date"
+                name="joinDate"
+                value={formData.joinDate}
+                onChange={handleInputChange}
+                disabled={!isEditing}
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Emergency Contact</label>
+            <input
+              type="text"
+              name="emergencyContact"
+              value={formData.emergencyContact}
+              onChange={handleInputChange}
+              disabled={!isEditing}
+              placeholder="Emergency contact information"
             />
           </div>
 

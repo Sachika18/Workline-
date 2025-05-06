@@ -105,6 +105,115 @@ const AdminTaskPage = () => {
 
   // Fetch users and tasks on component mount
   useEffect(() => {
+    // First, clean up any invalid task status values in localStorage
+    try {
+      console.log('Cleaning up localStorage task status values...');
+      const storedTasks = localStorage.getItem('workline_admin_tasks');
+      const tasksJson = localStorage.getItem('workline_tasks');
+      
+      // Fix admin tasks
+      if (storedTasks) {
+        let adminTasks = JSON.parse(storedTasks);
+        let modified = false;
+        
+        adminTasks = adminTasks.map(task => {
+          if (task.status) {
+            const oldStatus = task.status;
+            // Convert to uppercase and ensure it's a valid enum
+            let newStatus = task.status.toUpperCase();
+            
+            // Map any invalid statuses to valid ones
+            if (newStatus === 'ONGOING') newStatus = 'IN_PROGRESS';
+            if (!['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'CANCELED'].includes(newStatus)) {
+              newStatus = 'PENDING';
+            }
+            
+            if (oldStatus !== newStatus) {
+              modified = true;
+              console.log(`Fixed task status: ${oldStatus} -> ${newStatus}`);
+              return { ...task, status: newStatus };
+            }
+          }
+          return task;
+        });
+        
+        if (modified) {
+          localStorage.setItem('workline_admin_tasks', JSON.stringify(adminTasks));
+          console.log('Updated admin tasks in localStorage with fixed status values');
+        }
+      }
+      
+      // Fix all tasks
+      if (tasksJson) {
+        let allTasks = JSON.parse(tasksJson);
+        let modified = false;
+        
+        allTasks = allTasks.map(task => {
+          if (task.status) {
+            const oldStatus = task.status;
+            // Convert to uppercase and ensure it's a valid enum
+            let newStatus = task.status.toUpperCase();
+            
+            // Map any invalid statuses to valid ones
+            if (newStatus === 'ONGOING') newStatus = 'IN_PROGRESS';
+            if (!['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'CANCELED'].includes(newStatus)) {
+              newStatus = 'PENDING';
+            }
+            
+            if (oldStatus !== newStatus) {
+              modified = true;
+              console.log(`Fixed task status: ${oldStatus} -> ${newStatus}`);
+              return { ...task, status: newStatus };
+            }
+          }
+          return task;
+        });
+        
+        if (modified) {
+          localStorage.setItem('workline_tasks', JSON.stringify(allTasks));
+          console.log('Updated all tasks in localStorage with fixed status values');
+        }
+      }
+      
+      // Check for individual task status updates
+      const allKeys = Object.keys(localStorage);
+      const taskStatusKeys = allKeys.filter(key => key.startsWith('task_status_'));
+      
+      if (taskStatusKeys.length > 0) {
+        console.log(`Found ${taskStatusKeys.length} individual task status updates to fix`);
+        
+        taskStatusKeys.forEach(key => {
+          try {
+            const taskStatusJson = localStorage.getItem(key);
+            if (taskStatusJson) {
+              const taskStatus = JSON.parse(taskStatusJson);
+              if (taskStatus && taskStatus.status) {
+                const oldStatus = taskStatus.status;
+                // Convert to uppercase and ensure it's a valid enum
+                let newStatus = taskStatus.status.toUpperCase();
+                
+                // Map any invalid statuses to valid ones
+                if (newStatus === 'ONGOING') newStatus = 'IN_PROGRESS';
+                if (!['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'CANCELED'].includes(newStatus)) {
+                  newStatus = 'PENDING';
+                }
+                
+                if (oldStatus !== newStatus) {
+                  taskStatus.status = newStatus;
+                  localStorage.setItem(key, JSON.stringify(taskStatus));
+                  console.log(`Fixed individual task status: ${oldStatus} -> ${newStatus}`);
+                }
+              }
+            }
+          } catch (parseErr) {
+            console.error(`Error fixing task status from ${key}:`, parseErr);
+          }
+        });
+      }
+    } catch (cleanupErr) {
+      console.error('Error cleaning up localStorage:', cleanupErr);
+    }
+    
     const fetchData = async () => {
       setLoading(true);
       console.log('Starting API calls...');
@@ -247,6 +356,28 @@ const AdminTaskPage = () => {
     };
 
     fetchData();
+    
+    // Add a button to clear localStorage if needed
+    window.clearWorklineTasks = () => {
+      try {
+        localStorage.removeItem('workline_tasks');
+        localStorage.removeItem('workline_admin_tasks');
+        
+        // Also clear individual task status updates
+        const allKeys = Object.keys(localStorage);
+        const taskStatusKeys = allKeys.filter(key => key.startsWith('task_status_'));
+        
+        taskStatusKeys.forEach(key => {
+          localStorage.removeItem(key);
+        });
+        
+        console.log('Cleared all task data from localStorage');
+        alert('Task data cleared. Please refresh the page.');
+      } catch (err) {
+        console.error('Error clearing localStorage:', err);
+        alert('Error clearing task data: ' + err.message);
+      }
+    };
     
     // Set up a periodic refresh for tasks
     const refreshInterval = setInterval(() => {
