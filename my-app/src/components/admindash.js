@@ -201,6 +201,11 @@ const AdminDash = () => {
               </Link>
             </li>
             <li>
+              <Link to="/admin/documents" style={{ color: 'inherit', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+                <span className="menu-icon">📄</span> Documents
+              </Link>
+            </li>
+            <li>
               <Link to="/admin/reports" style={{ color: 'inherit', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
                 <span className="menu-icon">📊</span> Reports
               </Link>
