@@ -1,11 +1,13 @@
 package com.example.Backend.model;
 
+import java.time.LocalDate;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
-import java.time.LocalDate;
 
 @Data
 @NoArgsConstructor
@@ -26,9 +28,15 @@ public class Task {
     
     // Enum for task status
     public enum TaskStatus {
+        TODO,
         PENDING,
-        ONGOING,
-        COMPLETED
+        
+        COMPLETED,
+        IN_PROGRESS,
+        ONGOING,  // Added to support frontend "ongoing" status
+        CANCELLED,
+        CANCELED, // Alternative spelling
+        DONE
     }
     
     // Constructor for creating a new task

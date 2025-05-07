@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import fetchApi from '../utils/fetchApi';
 import { mockUsers, mockTasks, createMockTask } from '../utils/mockData';
+import { fixTaskStatuses, clearAllTaskData } from '../utils/taskStatusFix';
 import './Admintask.css';
 
 const AdminTaskPage = () => {
@@ -23,15 +24,99 @@ const AdminTaskPage = () => {
     try {
       console.log('Refreshing tasks...');
       
+      // First, clean up any tasks with 'ongoing' status in localStorage
+      try {
+        console.log('Checking localStorage for tasks with ongoing status...');
+        const storedTasks = localStorage.getItem('workline_admin_tasks');
+        const tasksJson = localStorage.getItem('workline_tasks');
+        
+        // Fix admin tasks
+        if (storedTasks) {
+          let adminTasks = JSON.parse(storedTasks);
+          let modified = false;
+          
+          adminTasks = adminTasks.map(task => {
+            if (task.status) {
+              const oldStatus = task.status;
+              // Convert to uppercase and ensure it's a valid enum
+              let newStatus = task.status.toUpperCase();
+              
+              // Map any invalid statuses to valid ones
+              if (newStatus === 'ONGOING') {
+                newStatus = 'IN_PROGRESS';
+                modified = true;
+                console.log(`Fixed task status in localStorage: ${oldStatus} -> ${newStatus}`);
+              }
+              
+              return { ...task, status: newStatus };
+            }
+            return task;
+          });
+          
+          if (modified) {
+            localStorage.setItem('workline_admin_tasks', JSON.stringify(adminTasks));
+            console.log('Updated admin tasks in localStorage with fixed status values');
+          }
+        }
+        
+        // Fix all tasks
+        if (tasksJson) {
+          let allTasks = JSON.parse(tasksJson);
+          let modified = false;
+          
+          allTasks = allTasks.map(task => {
+            if (task.status) {
+              const oldStatus = task.status;
+              // Convert to uppercase and ensure it's a valid enum
+              let newStatus = task.status.toUpperCase();
+              
+              // Map any invalid statuses to valid ones
+              if (newStatus === 'ONGOING') {
+                newStatus = 'IN_PROGRESS';
+                modified = true;
+                console.log(`Fixed task status in localStorage: ${oldStatus} -> ${newStatus}`);
+              }
+              
+              return { ...task, status: newStatus };
+            }
+            return task;
+          });
+          
+          if (modified) {
+            localStorage.setItem('workline_tasks', JSON.stringify(allTasks));
+            console.log('Updated all tasks in localStorage with fixed status values');
+          }
+        }
+      } catch (cleanupErr) {
+        console.error('Error cleaning up localStorage:', cleanupErr);
+      }
+      
       // Try different endpoints in sequence until one works
       let tasksResponse;
       let endpoint = '';
       
       try {
+        // First get the current user's ID from dashboard
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('No authentication token found');
+        }
+        
+        // Get user information first
+        const userResponse = await fetchApi.get('/dashboard');
+        const userId = userResponse.id;
+        
+        if (!userId) {
+          throw new Error('Could not determine user ID');
+        }
+        
         // For admin, we should use the base /tasks endpoint first to get ALL tasks
         endpoint = '/tasks';
         console.log('Trying endpoint:', endpoint);
-        tasksResponse = await fetchApi.get(endpoint);
+        
+        // Add query parameters for pagination and sorting
+        const queryParams = '?page=0&size=100&sort=createdAt,desc';
+        tasksResponse = await fetchApi.get(endpoint + queryParams);
       } catch (tasksErr) {
         console.log('Base tasks endpoint failed:', tasksErr);
         console.log('Trying my-tasks endpoint as fallback');
@@ -429,8 +514,13 @@ const AdminTaskPage = () => {
       // Convert to uppercase to match backend enum
       taskData.status = taskData.status.toUpperCase();
       
+      // Map ONGOING to IN_PROGRESS for backend compatibility
+      if (taskData.status === 'ONGOING') {
+        taskData.status = 'IN_PROGRESS';
+      }
+      
       // Ensure it's one of the valid enum values
-      if (!['PENDING', 'ONGOING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'CANCELED'].includes(taskData.status)) {
+      if (!['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'CANCELED'].includes(taskData.status)) {
         console.warn(`Invalid status value: ${taskData.status}, defaulting to PENDING`);
         taskData.status = 'PENDING';
       }
@@ -699,16 +789,59 @@ const AdminTaskPage = () => {
     <div className="admin-task-container">
       <div className="admin-header">
         <h1>Task Management</h1>
-        <button 
-          className="refresh-button" 
-          onClick={() => {
-            fetchTasks();
-            setSuccessMessage('Tasks refreshed');
-            setTimeout(() => setSuccessMessage(''), 1500);
-          }}
-        >
-          Refresh Tasks
-        </button>
+        <div className="admin-actions">
+          <button 
+            className="refresh-button" 
+            onClick={() => {
+              fetchTasks();
+              setSuccessMessage('Tasks refreshed');
+              setTimeout(() => setSuccessMessage(''), 1500);
+            }}
+          >
+            Refresh Tasks
+          </button>
+          
+          <button 
+            className="fix-status-button" 
+            onClick={() => {
+              const fixed = fixTaskStatuses();
+              setSuccessMessage(`Fixed ${fixed} task status values. Refreshing data...`);
+              
+              // Refresh tasks after fixing
+              setTimeout(() => {
+                fetchTasks().catch(err => {
+                  console.error('Task refresh after fixing statuses failed:', err);
+                });
+                
+                // Clear success message after 3 seconds
+                setTimeout(() => {
+                  setSuccessMessage('');
+                }, 3000);
+              }, 1000);
+            }}
+            title="Fix any 'ongoing' status values in localStorage to 'IN_PROGRESS'"
+          >
+            Fix Task Statuses
+          </button>
+          
+          <button 
+            className="clear-data-button" 
+            onClick={() => {
+              if (window.confirm('Are you sure you want to clear all task data from localStorage? This cannot be undone.')) {
+                clearAllTaskData();
+                setSuccessMessage('All task data cleared. Refreshing...');
+                
+                // Refresh after clearing
+                setTimeout(() => {
+                  window.location.reload();
+                }, 1500);
+              }
+            }}
+            title="Clear all task data from localStorage"
+          >
+            Clear Task Data
+          </button>
+        </div>
       </div>
       
       {error && <div className="error-message">{error}</div>}

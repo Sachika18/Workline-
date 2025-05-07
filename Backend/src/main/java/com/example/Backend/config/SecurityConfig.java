@@ -50,6 +50,8 @@ public class SecurityConfig {
                         .requestMatchers(new AntPathRequestMatcher("/api/user/**")).permitAll() // Allow access to user profile endpoints
                         .requestMatchers(new AntPathRequestMatcher("/api/tasks/**")).permitAll() // Allow access to task endpoints for testing
                         .requestMatchers(new AntPathRequestMatcher("/api/health/**")).permitAll() // Allow access to health endpoint
+                        .requestMatchers(new AntPathRequestMatcher("/ws/**")).permitAll() // Allow WebSocket connections
+                        .requestMatchers(new AntPathRequestMatcher("/api/messages/**")).permitAll() // Allow access to message endpoints
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

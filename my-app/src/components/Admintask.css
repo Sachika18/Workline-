@@ -13,14 +13,20 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 30px;
+    flex-wrap: wrap;
   }
 
   h1 {
     margin: 0;
   }
 
-  .refresh-button {
-    background-color: #3498db;
+  .admin-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .refresh-button, .fix-status-button, .clear-data-button {
     color: white;
     border: none;
     padding: 8px 16px;
@@ -30,8 +36,28 @@
     transition: background-color 0.2s;
   }
 
+  .refresh-button {
+    background-color: #3498db;
+  }
+
   .refresh-button:hover {
     background-color: #2980b9;
+  }
+
+  .fix-status-button {
+    background-color: #f39c12;
+  }
+
+  .fix-status-button:hover {
+    background-color: #e67e22;
+  }
+
+  .clear-data-button {
+    background-color: #e74c3c;
+  }
+
+  .clear-data-button:hover {
+    background-color: #c0392b;
   }
   
   h2 {
@@ -166,13 +192,20 @@
     color: #fff;
   }
   
-  .status-badge.ongoing {
+  .status-badge.ongoing,
+  .status-badge.in_progress {
     background-color: #3498db;
     color: #fff;
   }
   
   .status-badge.completed {
     background-color: #2ecc71;
+    color: #fff;
+  }
+
+  .status-badge.cancelled,
+  .status-badge.canceled {
+    background-color: #e74c3c;
     color: #fff;
   }
   
@@ -196,12 +229,18 @@
     border-left: 4px solid #f39c12;
   }
   
-  .status-ongoing {
+  .status-ongoing,
+  .status-in_progress {
     border-left: 4px solid #3498db;
   }
   
   .status-completed {
     border-left: 4px solid #2ecc71;
+  }
+
+  .status-cancelled,
+  .status-canceled {
+    border-left: 4px solid #e74c3c;
   }
   
   @media (max-width: 768px) {

@@ -40,7 +40,7 @@ export const mockTasks = [
     description: 'Create designs for the new dashboard components',
     assignedTo: 'mock-user-2',
     dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 5 days from now
-    status: 'ONGOING',
+    status: 'IN_PROGRESS',
     createdAt: new Date().toISOString().split('T')[0],
     createdBy: 'mock-user-3'
   },

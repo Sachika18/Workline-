@@ -514,6 +514,12 @@ const AdminDash = () => {
                 <span className="menu-icon">📄</span> Documents
               </Link>
             </li>
+            
+            <li>
+              <Link to="/admin/chat" style={{ color: 'inherit', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+                <span className="menu-icon">💬</span> Chat
+              </Link>
+            </li>
 
             <li>
               <Link to="/admin/settings" style={{ color: 'inherit', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>

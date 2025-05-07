@@ -51,7 +51,7 @@ const taskStorage = {
       
       // Ensure status is set with correct enum value
       if (!task.status) {
-        task.status = 'PENDING'; // Use uppercase enum values as expected by backend
+        task.status = 'IN_PROGRESS'; // Use uppercase enum values as expected by backend
       } else if (typeof task.status === 'string') {
         // Convert to uppercase to match backend enum
         task.status = task.status.toUpperCase();

@@ -4,6 +4,8 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 import { ThemeProvider } from './context/ThemeContext';
+// Import task status fix utilities to make them available globally
+import './utils/taskStatusFix';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

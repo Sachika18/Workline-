@@ -7,6 +7,145 @@ const getBaseUrl = () => {
   return API_BASE_URL;
 };
 
+// Helper function to normalize task status values
+const normalizeTaskStatus = (data) => {
+  if (!data) return data;
+  
+  // If it's a task object with a status field
+  if (data.status) {
+    // Convert to uppercase
+    let status = data.status.toUpperCase();
+    
+    // Map ONGOING to IN_PROGRESS for backend compatibility
+    if (status === 'ONGOING') {
+      console.log(`Normalizing task status from ${status} to IN_PROGRESS`);
+      data.status = 'IN_PROGRESS';
+    }
+  }
+  
+  // If it's an array of tasks
+  if (Array.isArray(data)) {
+    data.forEach(item => {
+      if (item && item.status) {
+        // Convert to uppercase
+        let status = item.status.toUpperCase();
+        
+        // Map ONGOING to IN_PROGRESS for backend compatibility
+        if (status === 'ONGOING') {
+          console.log(`Normalizing task status from ${status} to IN_PROGRESS`);
+          item.status = 'IN_PROGRESS';
+        }
+      }
+    });
+  }
+  
+  return data;
+};
+
+// Add a global function to fix task statuses in localStorage
+window.fixWorklineTaskStatuses = () => {
+  try {
+    let fixed = 0;
+    
+    // Fix admin tasks
+    const adminTasksJson = localStorage.getItem('workline_admin_tasks');
+    if (adminTasksJson) {
+      let adminTasks = JSON.parse(adminTasksJson);
+      let modified = false;
+      
+      adminTasks = adminTasks.map(task => {
+        if (task.status) {
+          const oldStatus = task.status;
+          // Convert to uppercase and ensure it's a valid enum
+          let newStatus = task.status.toUpperCase();
+          
+          // Map any invalid statuses to valid ones
+          if (newStatus === 'ONGOING') {
+            newStatus = 'IN_PROGRESS';
+            modified = true;
+            fixed++;
+            console.log(`Fixed admin task status: ${oldStatus} -> ${newStatus}`);
+          }
+          
+          return { ...task, status: newStatus };
+        }
+        return task;
+      });
+      
+      if (modified) {
+        localStorage.setItem('workline_admin_tasks', JSON.stringify(adminTasks));
+      }
+    }
+    
+    // Fix all tasks
+    const tasksJson = localStorage.getItem('workline_tasks');
+    if (tasksJson) {
+      let allTasks = JSON.parse(tasksJson);
+      let modified = false;
+      
+      allTasks = allTasks.map(task => {
+        if (task.status) {
+          const oldStatus = task.status;
+          // Convert to uppercase and ensure it's a valid enum
+          let newStatus = task.status.toUpperCase();
+          
+          // Map any invalid statuses to valid ones
+          if (newStatus === 'ONGOING') {
+            newStatus = 'IN_PROGRESS';
+            modified = true;
+            fixed++;
+            console.log(`Fixed task status: ${oldStatus} -> ${newStatus}`);
+          }
+          
+          return { ...task, status: newStatus };
+        }
+        return task;
+      });
+      
+      if (modified) {
+        localStorage.setItem('workline_tasks', JSON.stringify(allTasks));
+      }
+    }
+    
+    // Fix individual task status updates
+    const allKeys = Object.keys(localStorage);
+    const taskStatusKeys = allKeys.filter(key => key.startsWith('task_status_'));
+    
+    taskStatusKeys.forEach(key => {
+      try {
+        const taskStatusJson = localStorage.getItem(key);
+        if (taskStatusJson) {
+          const taskStatus = JSON.parse(taskStatusJson);
+          if (taskStatus && taskStatus.status) {
+            const oldStatus = taskStatus.status;
+            // Convert to uppercase and ensure it's a valid enum
+            let newStatus = taskStatus.status.toUpperCase();
+            
+            // Map any invalid statuses to valid ones
+            if (newStatus === 'ONGOING') {
+              taskStatus.status = 'IN_PROGRESS';
+              localStorage.setItem(key, JSON.stringify(taskStatus));
+              fixed++;
+              console.log(`Fixed individual task status: ${oldStatus} -> ${newStatus}`);
+            }
+          }
+        }
+      } catch (parseErr) {
+        console.error(`Error fixing task status from ${key}:`, parseErr);
+      }
+    });
+    
+    console.log(`Fixed ${fixed} task status values in localStorage`);
+    alert(`Fixed ${fixed} task status values. Please refresh the page.`);
+    
+    return fixed;
+  } catch (e) {
+    console.error('Error fixing task statuses:', e);
+    alert('Error fixing task statuses: ' + e.message);
+    return 0;
+  }
+};
+
 // Helper function to handle common fetch options
 const createFetchOptions = (method, data = null) => {
   const token = localStorage.getItem('token');
@@ -26,7 +165,9 @@ const createFetchOptions = (method, data = null) => {
   
   // Add body for POST, PUT, PATCH requests
   if (data && ['POST', 'PUT', 'PATCH'].includes(method)) {
-    options.body = JSON.stringify(data);
+    // Normalize task status values before sending to the API
+    const normalizedData = normalizeTaskStatus(data);
+    options.body = JSON.stringify(normalizedData);
   }
   
   return options;
@@ -58,6 +199,12 @@ const handleResponse = async (response) => {
     // For 400 errors, provide more context
     if (response.status === 400) {
       console.error('Bad request error. This might be due to missing or invalid parameters.');
+      
+      // Check if it's a task status enum error
+      if (response.url.includes('/tasks')) {
+        console.error('If you are seeing a "No enum constant" error for task status, run this in the console to fix it:');
+        console.error('window.fixWorklineTaskStatuses()');
+      }
     }
     
     // For 500 errors, provide more context

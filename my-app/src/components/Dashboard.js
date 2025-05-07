@@ -564,6 +564,11 @@ const Dashboard = () => {
               </Link>
             </li>
             <li>
+              <Link to="/chat" style={{ color: 'inherit', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+                <span className="menu-icon">💬</span> Chat
+              </Link>
+            </li>
+            <li>
               <Link to="/notifications" style={{ color: 'inherit', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
                 <span className="menu-icon">🔔</span> Notifications
               </Link>

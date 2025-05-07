@@ -19,6 +19,7 @@ import AdminDocuments from './components/AdminDocuments';
 import Settings from './components/Settings';
 import Employee from './components/Employee';
 import AdminAttendance from './components/AdminAttendance';
+import Chat from './components/Chat/Chat';
   
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/calendar" element={<Calendar />} />
         <Route path="/documents" element={<Documents />} />
+        <Route path="/chat" element={<Chat />} />
         <Route path="/admindash" element={<AdminDash />} />
         <Route path="/admintask" element={<AdminTaskPage/>} />
         <Route path="/admin/leaves" element={<AdminLeaveManagement />} />
@@ -40,6 +42,7 @@ function App() {
         <Route path="/admin/profile" element={<Profile />} />
         <Route path="/admin/employees" element={<Employee />} />
         <Route path="/admin/attendance" element={<AdminAttendance />} />
+        <Route path="/admin/chat" element={<Chat />} />
         <Route path="/enhancednotifications" element={<EnhancedNotifications />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/" element={<Navigate to="/login" />} />
