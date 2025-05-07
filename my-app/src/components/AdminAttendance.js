@@ -18,6 +18,7 @@ const AdminAttendance = () => {
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
   const [filterDepartment, setFilterDepartment] = useState('all');
   const [departments, setDepartments] = useState([]);
+  const [departmentStats, setDepartmentStats] = useState([]);
   const [attendanceStats, setAttendanceStats] = useState({
     totalEmployees: 0,
     presentToday: 0,
@@ -32,6 +33,7 @@ const AdminAttendance = () => {
   const [calendarData, setCalendarData] = useState({});
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [employeeCalendarData, setEmployeeCalendarData] = useState(null);
 
   // Fetch employees and attendance data
   useEffect(() => {
@@ -100,23 +102,45 @@ const AdminAttendance = () => {
       });
       
       if (!response.ok) {
-        // If API fails, generate mock data
-        console.warn('Using mock attendance data');
-        const mockData = generateMockAttendanceData(employeesList, startDate, endDate);
-        processAttendanceData(mockData, employeesList);
-        return;
+        throw new Error(`API error: ${response.status}`);
       }
       
       const data = await response.json();
       processAttendanceData(data, employeesList);
+      
+      // Also fetch department statistics
+      fetchDepartmentStats(startDateStr, endDateStr);
     } catch (error) {
       console.error('Error fetching attendance records:', error);
+      alert('Failed to fetch attendance data. Please try again later.');
+    }
+  };
+  
+  // Fetch department attendance statistics
+  const fetchDepartmentStats = async (startDateStr, endDateStr) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
       
-      // Generate mock data as fallback
-      const startDate = new Date(filterYear, filterMonth, 1);
-      const endDate = new Date(filterYear, filterMonth + 1, 0);
-      const mockData = generateMockAttendanceData(employeesList, startDate, endDate);
-      processAttendanceData(mockData, employeesList);
+      const response = await fetch(`http://localhost:8080/api/admin/attendance/department-stats?startDate=${startDateStr}&endDate=${endDateStr}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setDepartmentStats(data);
+    } catch (error) {
+      console.error('Error fetching department stats:', error);
     }
   };
 
@@ -132,17 +156,19 @@ const AdminAttendance = () => {
       
       // Determine status based on MongoDB Attendance collection
       let status = record.status;
-      if (status === 'COMPLETED' || status === 'PRESENT' || status === 'CHECKED_IN') {
+      if (status === 'COMPLETED') {
         status = 'PRESENT';
-      } else if (!record.checkInTime) {
+      } else if (status === 'CHECKED_IN') {
+        status = 'PRESENT';
+      } else if (status === 'ABSENT' || !record.checkInTime) {
         status = 'ABSENT';
       }
       
       return {
         ...record,
-        employeeName: employee.name || 'Unknown Employee',
-        department: employee.department || 'General',
-        position: employee.position || 'Employee',
+        employeeName: record.employeeName || employee.name || 'Unknown Employee',
+        department: record.department || employee.department || 'General',
+        position: record.position || employee.position || 'Employee',
         avatar: employee.avatar || null,
         status: status
       };
@@ -332,6 +358,10 @@ const AdminAttendance = () => {
     const recordsByDate = {};
     const employeeCalendar = {};
     
+    // Get current date to limit chart
+    const currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
+    
     // Initialize employee calendar data
     employeesList.forEach(employee => {
       employeeCalendar[employee.id] = {
@@ -343,6 +373,10 @@ const AdminAttendance = () => {
     // Process all records
     records.forEach(record => {
       const recordDate = new Date(record.date || record.checkInTime);
+      
+      // Skip future dates
+      if (recordDate > currentDate) return;
+      
       const dateKey = recordDate.toISOString().split('T')[0];
       
       // Initialize date in recordsByDate if not exists
@@ -351,26 +385,27 @@ const AdminAttendance = () => {
           date: dateKey,
           present: 0,
           absent: 0,
-          late: 0,
-          total: employeesList.length
+          total: employeesList.length,
+          employeesPresent: 0,
+          employeesAbsent: 0
         };
       }
       
-      // Update counts based on status
-      if (record.status === 'PRESENT' || record.status === 'CHECKED_IN' || record.status === 'COMPLETED') {
+      // Update counts based on status - combine LATE into PRESENT
+      if (record.status === 'PRESENT' || record.status === 'CHECKED_IN' || 
+          record.status === 'COMPLETED' || record.status === 'LATE') {
         recordsByDate[dateKey].present += 1;
-      } else if (record.status === 'LATE') {
-        recordsByDate[dateKey].late += 1;
-        recordsByDate[dateKey].present += 1; // Late is still present
+        recordsByDate[dateKey].employeesPresent += 1;
       } else if (record.status === 'ABSENT') {
         recordsByDate[dateKey].absent += 1;
+        recordsByDate[dateKey].employeesAbsent += 1;
       }
       
       // Update employee calendar data
       const employeeId = record.userId || record.employeeId;
       if (employeeCalendar[employeeId]) {
         employeeCalendar[employeeId].attendanceByDate[dateKey] = {
-          status: record.status,
+          status: record.status === 'LATE' ? 'PRESENT' : record.status, // Treat LATE as PRESENT
           checkInTime: record.checkInTime,
           checkOutTime: record.checkOutTime,
           totalHours: record.totalHours
@@ -387,11 +422,14 @@ const AdminAttendance = () => {
     graphDataArray.forEach(day => {
       day.presentPercentage = Math.round((day.present / day.total) * 100);
       day.absentPercentage = Math.round((day.absent / day.total) * 100);
-      day.latePercentage = Math.round((day.late / day.total) * 100);
       day.displayDate = new Date(day.date).toLocaleDateString('en-US', { 
         month: 'short', 
         day: 'numeric' 
       });
+      
+      // Add employee count information
+      day.presentCount = `${day.employeesPresent} of ${day.total}`;
+      day.absentCount = `${day.employeesAbsent} of ${day.total}`;
     });
     
     setGraphData(graphDataArray);
@@ -399,10 +437,27 @@ const AdminAttendance = () => {
   };
 
   // Handle employee selection for detailed view
-  const handleEmployeeSelect = (employeeId) => {
-    const employee = employees.find(emp => emp.id === employeeId);
-    if (employee) {
-      // Get attendance records for this employee
+  const handleEmployeeSelect = async (employeeId) => {
+    try {
+      const employee = employees.find(emp => emp.id === employeeId);
+      if (!employee) return;
+      
+      setLoading(true);
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+      
+      // Create date range for selected month
+      const startDate = new Date(selectedYear, selectedMonth, 1);
+      const endDate = new Date(selectedYear, selectedMonth + 1, 0);
+      
+      const startDateStr = startDate.toISOString().split('T')[0];
+      const endDateStr = endDate.toISOString().split('T')[0];
+      
+      // Get attendance records for this employee from current data
       const employeeRecords = attendanceRecords.filter(record => 
         record.userId === employeeId || 
         record.employeeId === employeeId ||
@@ -416,16 +471,82 @@ const AdminAttendance = () => {
         return dateA - dateB;
       });
       
-      // Set the selected month and year to the current month/year
-      setSelectedMonth(new Date().getMonth());
-      setSelectedYear(new Date().getFullYear());
-      
+      // Set the selected employee with sorted records
       setSelectedEmployee({
         ...employee,
         attendanceRecords: sortedRecords
       });
       
+      // Fetch employee attendance calendar
+      try {
+        const response = await fetch(
+          `http://localhost:8080/api/admin/attendance/employee/${employeeId}?startDate=${startDateStr}&endDate=${endDateStr}`, 
+          {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Process calendar data
+          const calendarDays = {};
+          data.days.forEach(day => {
+            const date = new Date(day.date);
+            calendarDays[date.getDate()] = {
+              status: day.status,
+              checkInTime: day.checkInTime,
+              checkOutTime: day.checkOutTime,
+              totalHours: day.totalHours
+            };
+          });
+          
+          setEmployeeCalendarData({
+            employee: employee,
+            days: calendarDays,
+            summary: data.summary
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching employee calendar:', error);
+        // Fall back to existing data if API fails
+        const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+        const calendarDays = {};
+        
+        // Initialize all days
+        for (let day = 1; day <= daysInMonth; day++) {
+          calendarDays[day] = { status: 'ABSENT' };
+        }
+        
+        // Fill in with available data
+        sortedRecords.forEach(record => {
+          const recordDate = new Date(record.date || record.checkInTime);
+          if (recordDate.getMonth() === selectedMonth && recordDate.getFullYear() === selectedYear) {
+            const day = recordDate.getDate();
+            calendarDays[day] = {
+              status: record.status,
+              checkInTime: record.checkInTime,
+              checkOutTime: record.checkOutTime,
+              totalHours: record.totalHours
+            };
+          }
+        });
+        
+        setEmployeeCalendarData({
+          employee: employee,
+          days: calendarDays
+        });
+      }
+      
       setShowEmployeeModal(true);
+    } catch (error) {
+      console.error('Error in handleEmployeeSelect:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -597,6 +718,50 @@ const AdminAttendance = () => {
         </div>
       </div>
 
+      {/* Department Statistics */}
+      {departmentStats && departmentStats.length > 0 && (
+        <div className="department-stats-container">
+          <h2>Department Attendance Statistics</h2>
+          <div className="department-stats-chart">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={departmentStats}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="department" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="attendanceRate" name="Attendance Rate (%)" fill="#4CAF50" />
+                <Bar dataKey="totalEmployees" name="Total Employees" fill="#2196F3" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="department-stats-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Department</th>
+                  <th>Employees</th>
+                  <th>Present</th>
+                  <th>Absent</th>
+                  <th>Attendance Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {departmentStats.map((dept, index) => (
+                  <tr key={index}>
+                    <td>{dept.department}</td>
+                    <td>{dept.totalEmployees}</td>
+                    <td>{dept.presentCount}</td>
+                    <td>{dept.absentCount}</td>
+                    <td>{dept.attendanceRate}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Filters and Search */}
       <div className="attendance-controls">
         <div className="search-filter-container">
@@ -673,10 +838,18 @@ const AdminAttendance = () => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="displayDate" />
               <YAxis label={{ value: 'Percentage (%)', angle: -90, position: 'insideLeft' }} />
-              <Tooltip />
+              <Tooltip 
+                formatter={(value, name, props) => {
+                  if (name === 'Present') {
+                    return [`${value}% (${props.payload.presentCount})`, name];
+                  } else if (name === 'Absent') {
+                    return [`${value}% (${props.payload.absentCount})`, name];
+                  }
+                  return [value, name];
+                }}
+              />
               <Legend />
               <Bar dataKey="presentPercentage" name="Present" fill="#27ae60" />
-              <Bar dataKey="latePercentage" name="Late" fill="#f1c40f" />
               <Bar dataKey="absentPercentage" name="Absent" fill="#e74c3c" />
             </BarChart>
           </ResponsiveContainer>
@@ -685,7 +858,7 @@ const AdminAttendance = () => {
 
       {/* Employee List */}
       <div className="employee-list-container">
-        <h2>Employees ({employees.length})</h2>
+        <h2>Employees ({employees.length}) - {attendanceStats.presentToday} Present Today</h2>
         <div className="employee-grid">
           {employees.length > 0 ? (
             employees
@@ -723,6 +896,40 @@ const AdminAttendance = () => {
                       <h3>{employee.name}</h3>
                       <p className="employee-position">{employee.position}</p>
                       <p className="employee-department">{employee.department}</p>
+                      
+                      {/* Monthly attendance summary */}
+                      {(() => {
+                        // Get current month's attendance records
+                        const currentMonth = new Date().getMonth();
+                        const currentYear = new Date().getFullYear();
+                        
+                        const monthRecords = attendanceRecords.filter(record => {
+                          const recordDate = new Date(record.date || record.checkInTime);
+                          return (record.userId === employee.id || record.employeeId === employee.id) && 
+                                 recordDate.getMonth() === currentMonth &&
+                                 recordDate.getFullYear() === currentYear;
+                        });
+                        
+                        // Count present and absent days
+                        const presentDays = monthRecords.filter(record => 
+                          record.status === 'PRESENT' || 
+                          record.status === 'CHECKED_IN' || 
+                          record.status === 'COMPLETED' ||
+                          record.status === 'LATE'
+                        ).length;
+                        
+                        const absentDays = monthRecords.filter(record => 
+                          record.status === 'ABSENT'
+                        ).length;
+                        
+                        return (
+                          <div className="monthly-attendance-summary">
+                            <span className="present-days">Present: {presentDays}</span>
+                            <span className="absent-days">Absent: {absentDays}</span>
+                          </div>
+                        );
+                      })()}
+                      
                       <div className="attendance-percentage-small">
                         <div className="percentage-bar">
                           <div 
@@ -827,7 +1034,13 @@ const AdminAttendance = () => {
                 <div className="calendar-controls">
                   <select 
                     value={selectedMonth} 
-                    onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                    onChange={(e) => {
+                      const newMonth = parseInt(e.target.value);
+                      setSelectedMonth(newMonth);
+                      if (selectedEmployee) {
+                        handleEmployeeSelect(selectedEmployee.id);
+                      }
+                    }}
                   >
                     {Array.from({ length: 12 }, (_, i) => (
                       <option key={i} value={i}>
@@ -837,7 +1050,13 @@ const AdminAttendance = () => {
                   </select>
                   <select 
                     value={selectedYear} 
-                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                    onChange={(e) => {
+                      const newYear = parseInt(e.target.value);
+                      setSelectedYear(newYear);
+                      if (selectedEmployee) {
+                        handleEmployeeSelect(selectedEmployee.id);
+                      }
+                    }}
                   >
                     {Array.from({ length: 5 }, (_, i) => {
                       const year = new Date().getFullYear() - 2 + i;
@@ -871,26 +1090,49 @@ const AdminAttendance = () => {
                     const date = new Date(selectedYear, selectedMonth, day);
                     const dateStr = date.toISOString().split('T')[0];
                     
-                    // Find attendance record for this day
-                    const record = selectedEmployee.attendanceRecords.find(rec => {
-                      const recordDate = new Date(rec.date || rec.checkInTime);
-                      return recordDate.toISOString().split('T')[0] === dateStr;
-                    });
+                    // Get attendance data for this day
+                    let dayData = null;
+                    
+                    // First try to get from the API calendar data if available
+                    if (employeeCalendarData && employeeCalendarData.days && employeeCalendarData.days[day]) {
+                      dayData = employeeCalendarData.days[day];
+                    } else {
+                      // Fall back to the attendance records if API data not available
+                      const record = selectedEmployee.attendanceRecords.find(rec => {
+                        const recordDate = new Date(rec.date || rec.checkInTime);
+                        return recordDate.toISOString().split('T')[0] === dateStr;
+                      });
+                      
+                      if (record) {
+                        dayData = {
+                          status: record.status,
+                          checkInTime: record.checkInTime,
+                          checkOutTime: record.checkOutTime,
+                          totalHours: record.totalHours
+                        };
+                      }
+                    }
                     
                     let statusClass = 'no-record';
                     let statusText = '';
+                    let checkInTime = null;
+                    let checkOutTime = null;
+                    let totalHours = null;
                     
-                    if (record) {
-                      if (record.status === 'PRESENT' || record.status === 'CHECKED_IN' || record.status === 'COMPLETED') {
+                    if (dayData) {
+                      // Treat LATE as PRESENT for consistency
+                      if (dayData.status === 'PRESENT' || dayData.status === 'CHECKED_IN' || 
+                          dayData.status === 'COMPLETED' || dayData.status === 'LATE') {
                         statusClass = 'present';
                         statusText = 'Present';
-                      } else if (record.status === 'LATE') {
-                        statusClass = 'late';
-                        statusText = 'Late';
-                      } else if (record.status === 'ABSENT') {
+                      } else if (dayData.status === 'ABSENT') {
                         statusClass = 'absent';
                         statusText = 'Absent';
                       }
+                      
+                      checkInTime = dayData.checkInTime;
+                      checkOutTime = dayData.checkOutTime;
+                      totalHours = dayData.totalHours;
                     } else {
                       // If no record and date is in the past, mark as absent
                       const today = new Date();
@@ -902,21 +1144,33 @@ const AdminAttendance = () => {
                       }
                     }
                     
+                    // Add weekend class for Saturday and Sunday
+                    if (date.getDay() === 0 || date.getDay() === 6) {
+                      statusClass += ' weekend';
+                    }
+                    
+                    // Create tooltip content with more details
+                    let tooltipContent = `${day}: ${statusText}`;
+                    if (checkInTime) {
+                      tooltipContent += `\nCheck-in: ${formatTime(checkInTime)}`;
+                    }
+                    if (checkOutTime) {
+                      tooltipContent += `\nCheck-out: ${formatTime(checkOutTime)}`;
+                    }
+                    if (totalHours) {
+                      tooltipContent += `\nHours: ${totalHours.toFixed(2)}`;
+                    }
+                    
                     days.push(
                       <div 
                         key={day} 
                         className={`calendar-day ${statusClass}`}
-                        title={statusText ? `${day}: ${statusText}` : ''}
+                        title={tooltipContent}
                       >
                         <span className="day-number">{day}</span>
-                        {record && (
-                          <div className="day-details">
-                            {record.checkInTime && (
-                              <span className="check-time">In: {formatTime(record.checkInTime)}</span>
-                            )}
-                            {record.checkOutTime && (
-                              <span className="check-time">Out: {formatTime(record.checkOutTime)}</span>
-                            )}
+                        {statusText && (
+                          <div className="status-indicator">
+                            {statusClass === 'present' ? '✓' : statusClass === 'absent' ? '✗' : ''}
                           </div>
                         )}
                       </div>
@@ -927,18 +1181,89 @@ const AdminAttendance = () => {
                 })()}
               </div>
               
-              <div className="calendar-legend">
-                <div className="legend-item">
-                  <div className="legend-color present-color"></div>
-                  <span>Present</span>
+              <div className="calendar-summary">
+                <h4>Monthly Summary</h4>
+                <div className="summary-stats">
+                  {(() => {
+                    // Calculate monthly stats
+                    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+                    let presentDays = 0;
+                    let absentDays = 0;
+                    let workingDays = 0;
+                    
+                    // Count working days (excluding weekends)
+                    for (let day = 1; day <= daysInMonth; day++) {
+                      const date = new Date(selectedYear, selectedMonth, day);
+                      // Skip weekends (0 = Sunday, 6 = Saturday)
+                      if (date.getDay() !== 0 && date.getDay() !== 6) {
+                        workingDays++;
+                      }
+                    }
+                    
+                    // Count present/absent days from calendar data
+                    if (employeeCalendarData && employeeCalendarData.days) {
+                      Object.entries(employeeCalendarData.days).forEach(([day, data]) => {
+                        if (data.status === 'PRESENT' || data.status === 'CHECKED_IN' || 
+                            data.status === 'COMPLETED' || data.status === 'LATE') {
+                          presentDays++;
+                        } else if (data.status === 'ABSENT') {
+                          absentDays++;
+                        }
+                      });
+                    } else {
+                      // Fall back to attendance records
+                      selectedEmployee.attendanceRecords.forEach(record => {
+                        const recordDate = new Date(record.date || record.checkInTime);
+                        if (recordDate.getMonth() === selectedMonth && recordDate.getFullYear() === selectedYear) {
+                          if (record.status === 'PRESENT' || record.status === 'CHECKED_IN' || 
+                              record.status === 'COMPLETED' || record.status === 'LATE') {
+                            presentDays++;
+                          } else if (record.status === 'ABSENT') {
+                            absentDays++;
+                          }
+                        }
+                      });
+                    }
+                    
+                    // Calculate attendance rate
+                    const attendanceRate = workingDays > 0 ? Math.round((presentDays / workingDays) * 100) : 0;
+                    
+                    return (
+                      <div className="monthly-stats-grid">
+                        <div className="monthly-stat-box">
+                          <h5>Working Days</h5>
+                          <p>{workingDays}</p>
+                        </div>
+                        <div className="monthly-stat-box">
+                          <h5>Present</h5>
+                          <p>{presentDays}</p>
+                        </div>
+                        <div className="monthly-stat-box">
+                          <h5>Absent</h5>
+                          <p>{absentDays}</p>
+                        </div>
+                        <div className="monthly-stat-box">
+                          <h5>Attendance Rate</h5>
+                          <p>{attendanceRate}%</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
-                <div className="legend-item">
-                  <div className="legend-color late-color"></div>
-                  <span>Late</span>
-                </div>
-                <div className="legend-item">
-                  <div className="legend-color absent-color"></div>
-                  <span>Absent</span>
+                
+                <div className="calendar-legend">
+                  <div className="legend-item">
+                    <div className="legend-color present-color"></div>
+                    <span>Present</span>
+                  </div>
+                  <div className="legend-item">
+                    <div className="legend-color absent-color"></div>
+                    <span>Absent</span>
+                  </div>
+                  <div className="legend-item">
+                    <div className="legend-color weekend-color"></div>
+                    <span>Weekend</span>
+                  </div>
                 </div>
               </div>
             </div>
