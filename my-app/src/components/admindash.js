@@ -914,8 +914,8 @@ const AdminDash = () => {
                 </div>
                 <div className="employee-actions">
                   <button className="employee-action" title="View Profile">👤</button>
-                  <button className="employee-action" title="Assign Task">✓</button>
-                  <button className="employee-action" title="Send Message">✉️</button>
+                  
+                  
                 </div>
               </div>
             ))}

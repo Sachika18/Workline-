@@ -801,3 +801,28 @@
 .delete-confirm-btn:hover {
   background-color: #c9302c;
 }
+
+.delete-note {
+  margin-top: 20px;
+  font-size: 14px;
+  color: #7f8c8d;
+  border-top: 1px solid #ecf0f1;
+  padding-top: 10px;
+}
+
+.force-delete-btn {
+  background-color: #8e44ad;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.3s;
+  margin-top: 5px;
+  width: 100%;
+}
+
+.force-delete-btn:hover {
+  background-color: #6c3483;
+}

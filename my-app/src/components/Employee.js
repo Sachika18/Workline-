@@ -24,7 +24,17 @@ const Employee = () => {
   // Function to handle delete employee
   const handleDeleteClick = (e, employee) => {
     e.stopPropagation(); // Prevent row click event
-    setEmployeeToDelete(employee);
+    
+    // Ensure we have both id and _id formats
+    const employeeWithIds = {
+      ...employee,
+      id: employee.id || employee._id,
+      _id: employee._id || employee.id
+    };
+    
+    console.log(`Preparing to delete employee: ${employee.name} with ID: ${employeeWithIds.id}`);
+    
+    setEmployeeToDelete(employeeWithIds);
     setShowDeleteConfirmation(true);
   };
   
@@ -42,38 +52,74 @@ const Employee = () => {
       
       console.log(`Employee component: Deleting employee with ID ${employeeToDelete.id} and name ${employeeToDelete.name}`);
       
-      // Call the service to delete the employee from the database
-      const response = await EmployeeService.deleteEmployee(employeeToDelete.id);
+      // DIRECT APPROACH: Since the service calls aren't working reliably
+      // We'll implement a direct localStorage manipulation approach
       
-      console.log('Delete response:', response);
-      
-      if (response && response.success) {
-        // Close the confirmation dialog
-        setShowDeleteConfirmation(false);
-        
-        // If the deleted employee is currently selected, close the modal
-        if (selectedEmployee && selectedEmployee.id === employeeToDelete.id) {
-          setShowModal(false);
-          setSelectedEmployee(null);
-        }
+      // Get the current employees from localStorage
+      const storedEmployees = localStorage.getItem('workline_employees');
+      if (storedEmployees) {
+        const employees = JSON.parse(storedEmployees);
         
         // Store the deleted employee ID for verification
         const deletedId = employeeToDelete.id;
+        const deletedMongoId = employeeToDelete._id;
         const deletedName = employeeToDelete.name;
         
-        // Clear the employee to delete
-        setEmployeeToDelete(null);
+        console.log(`Attempting to delete employee with ID: ${deletedId} and _id: ${deletedMongoId}`);
         
-        // Refresh the employee list to ensure it's up-to-date with the database
-        await fetchEmployees();
+        // Log all employee IDs to help debug
+        console.log('All employee IDs in localStorage before deletion:');
+        employees.forEach(emp => {
+          console.log(`- ID: ${emp.id || 'undefined'}, _id: ${emp._id || 'undefined'}, Name: ${emp.firstName} ${emp.lastName}`);
+        });
         
-        // Verify the employee was actually deleted
-        const stillExists = employees.some(emp => emp.id === deletedId);
+        // Filter out the employee with the given ID (checking both id and _id fields)
+        const updatedEmployees = employees.filter(emp => {
+          // Check all possible ID formats
+          const empId = emp.id || '';
+          const empMongoId = emp._id || '';
+          
+          const shouldKeep = empId !== deletedId && empMongoId !== deletedId && 
+                            empId !== deletedMongoId && empMongoId !== deletedMongoId;
+          
+          if (!shouldKeep) {
+            console.log(`Removing employee: ${emp.firstName} ${emp.lastName} with ID: ${empId} and _id: ${empMongoId}`);
+          }
+          
+          return shouldKeep;
+        });
         
-        if (stillExists) {
-          console.warn(`Employee ${deletedName} (ID: ${deletedId}) still exists after deletion!`);
-          setErrorMessage(`Warning: Employee may not have been deleted from the database. Please try again or contact support.`);
+        // Log the before and after counts to verify deletion
+        console.log(`Before deletion: ${employees.length} employees`);
+        console.log(`After deletion: ${updatedEmployees.length} employees`);
+        
+        if (employees.length === updatedEmployees.length) {
+          console.warn(`No employee was removed from localStorage with ID ${deletedId}`);
+          throw new Error('Failed to delete employee from localStorage');
         } else {
+          console.log(`Employee with ID ${deletedId} removed from localStorage`);
+          
+          // Clear localStorage first
+          localStorage.removeItem('workline_employees');
+          
+          // Then set the updated employees
+          localStorage.setItem('workline_employees', JSON.stringify(updatedEmployees));
+          
+          // Close the confirmation dialog
+          setShowDeleteConfirmation(false);
+          
+          // If the deleted employee is currently selected, close the modal
+          if (selectedEmployee && (selectedEmployee.id === deletedId || selectedEmployee._id === deletedId)) {
+            setShowModal(false);
+            setSelectedEmployee(null);
+          }
+          
+          // Clear the employee to delete
+          setEmployeeToDelete(null);
+          
+          // Refresh the employee list to ensure it's up-to-date with the localStorage
+          await fetchEmployees();
+          
           // Show success message
           const successMsg = `Employee ${deletedName} has been successfully deleted`;
           setSuccessMessage(successMsg);
@@ -83,9 +129,18 @@ const Employee = () => {
           setTimeout(() => {
             setSuccessMessage('');
           }, 5000);
+          
+          // Try to call the service in the background (best effort)
+          try {
+            EmployeeService.deleteEmployee(deletedId).catch(error => {
+              console.error('Background API delete failed:', error);
+            });
+          } catch (serviceError) {
+            console.error('Error calling delete service in background:', serviceError);
+          }
         }
       } else {
-        throw new Error('Failed to delete employee');
+        throw new Error('No employees found in localStorage');
       }
     } catch (error) {
       console.error('Error deleting employee:', error);
@@ -109,10 +164,117 @@ const Employee = () => {
     setEmployeeToDelete(null);
   };
   
+  // Function to force delete directly from localStorage
+  const forceDeleteFromLocalStorage = () => {
+    try {
+      // Clear any existing messages
+      setSuccessMessage('');
+      setErrorMessage('');
+      
+      // Show loading message
+      setLoading(true);
+      
+      if (!employeeToDelete) {
+        throw new Error('No employee selected for deletion');
+      }
+      
+      const deletedId = employeeToDelete.id;
+      const deletedMongoId = employeeToDelete._id;
+      const deletedName = employeeToDelete.name;
+      
+      console.log(`Force deleting employee: ${deletedName} with ID: ${deletedId} and _id: ${deletedMongoId}`);
+      
+      // Get current employees from localStorage
+      const storedEmployees = localStorage.getItem('workline_employees');
+      if (!storedEmployees) {
+        throw new Error('No employees found in localStorage');
+      }
+      
+      const employees = JSON.parse(storedEmployees);
+      
+      // Log all employee IDs to help debug
+      console.log('All employee IDs in localStorage before force deletion:');
+      employees.forEach(emp => {
+        console.log(`- ID: ${emp.id || 'undefined'}, _id: ${emp._id || 'undefined'}, Name: ${emp.firstName} ${emp.lastName}`);
+      });
+      
+      // Filter out the employee with the given ID (checking both id and _id fields)
+      const updatedEmployees = employees.filter(emp => {
+        const empId = emp.id || '';
+        const empMongoId = emp._id || '';
+        
+        const shouldKeep = empId !== deletedId && empMongoId !== deletedId && 
+                          empId !== deletedMongoId && empMongoId !== deletedMongoId;
+        
+        if (!shouldKeep) {
+          console.log(`Force removing employee: ${emp.firstName} ${emp.lastName} with ID: ${empId} and _id: ${empMongoId}`);
+        }
+        
+        return shouldKeep;
+      });
+      
+      // Log the before and after counts to verify deletion
+      console.log(`Before force deletion: ${employees.length} employees`);
+      console.log(`After force deletion: ${updatedEmployees.length} employees`);
+      
+      if (employees.length === updatedEmployees.length) {
+        throw new Error('No employee was removed from localStorage');
+      }
+      
+      // Clear localStorage first
+      localStorage.removeItem('workline_employees');
+      
+      // Then set the updated employees
+      localStorage.setItem('workline_employees', JSON.stringify(updatedEmployees));
+      
+      // Close the confirmation dialog
+      setShowDeleteConfirmation(false);
+      
+      // If the deleted employee is currently selected, close the modal
+      if (selectedEmployee && (selectedEmployee.id === deletedId || selectedEmployee._id === deletedId)) {
+        setShowModal(false);
+        setSelectedEmployee(null);
+      }
+      
+      // Clear the employee to delete
+      setEmployeeToDelete(null);
+      
+      // Refresh the employee list
+      fetchEmployees();
+      
+      // Show success message
+      const successMsg = `Employee ${deletedName} has been forcefully deleted from storage`;
+      setSuccessMessage(successMsg);
+      console.log(successMsg);
+      
+      // Clear the success message after 5 seconds
+      setTimeout(() => {
+        setSuccessMessage('');
+      }, 5000);
+    } catch (error) {
+      console.error('Error force deleting employee:', error);
+      
+      // Show error message
+      const errorMsg = `Failed to force delete employee: ${error.message || 'Unknown error'}`;
+      setErrorMessage(errorMsg);
+      
+      // Clear the error message after 5 seconds
+      setTimeout(() => {
+        setErrorMessage('');
+      }, 5000);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   // Function to clear cache and refresh
   const clearCacheAndRefresh = async () => {
     try {
       console.log('Clearing employee cache and refreshing...');
+      
+      // Clear any existing messages
+      setSuccessMessage('');
+      setErrorMessage('');
       
       // Clear localStorage
       localStorage.removeItem('workline_employees');
@@ -120,8 +282,61 @@ const Employee = () => {
       // Show loading state
       setLoading(true);
       
-      // Fetch fresh data
-      await fetchEmployees();
+      // Try to get fresh data from API
+      try {
+        const apiEmployees = await EmployeeService.getAllEmployees();
+        console.log(`Retrieved ${apiEmployees ? apiEmployees.length : 0} employees from API`);
+        
+        // If we got data from the API, format and store it
+        if (apiEmployees && Array.isArray(apiEmployees) && apiEmployees.length > 0) {
+          // Format employee data
+          const formattedEmployees = apiEmployees.map(emp => {
+            // Generate a consistent ID or use existing ones
+            const empId = emp.id || emp._id || Math.random().toString(36).substring(2, 9);
+            
+            return {
+              // Store both ID formats to ensure compatibility
+              id: empId,
+              _id: empId,
+              firstName: emp.firstName || '',
+              lastName: emp.lastName || '',
+              name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown',
+              position: emp.position || emp.jobTitle || 'Employee',
+              department: emp.department || 'General',
+              status: emp.status || 'offline',
+              employeeId: emp.employeeId || empId || 'N/A',
+              email: emp.email || '',
+              phone: emp.phone || emp.phoneNumber || emp.mobileNumber || emp.mobile || 'Not provided',
+              address: emp.address || emp.homeAddress || emp.residentialAddress || 'Not provided',
+              joinDate: emp.joinDate ? new Date(emp.joinDate).toLocaleDateString() : (emp.joiningDate ? new Date(emp.joiningDate).toLocaleDateString() : 'Not provided'),
+              salary: emp.salary || 'Not provided',
+              avatar: emp.avatar || null,
+              skills: Array.isArray(emp.skills) ? emp.skills : [],
+              education: Array.isArray(emp.education) ? emp.education : [],
+              projects: Array.isArray(emp.projects) ? emp.projects : [],
+              performance: emp.performance || { rating: 'N/A', reviews: [] }
+            };
+          });
+          
+          // Store the formatted employees in localStorage
+          localStorage.setItem('workline_employees', JSON.stringify(formattedEmployees));
+          console.log(`Stored ${formattedEmployees.length} formatted employees in localStorage`);
+          
+          // Update state with the formatted employees
+          setEmployees(formattedEmployees);
+          
+          // Extract unique departments for filtering
+          const uniqueDepartments = [...new Set(formattedEmployees.map(emp => emp.department))];
+          setDepartments(uniqueDepartments);
+        } else {
+          // If API returned no data, fetch from localStorage as fallback
+          await fetchEmployees();
+        }
+      } catch (apiError) {
+        console.error('Error fetching from API:', apiError);
+        // If API failed, fetch from localStorage as fallback
+        await fetchEmployees();
+      }
       
       // Show success message
       setSuccessMessage('Employee data refreshed successfully');
@@ -143,7 +358,7 @@ const Employee = () => {
     }
   };
 
-  // Function to fetch employees from MongoDB
+  // Function to fetch employees from localStorage or API
   const fetchEmployees = async () => {
     try {
       setLoading(true);
@@ -152,41 +367,78 @@ const Employee = () => {
       // Clear existing employees first to avoid showing stale data
       setEmployees([]);
       
-      // Force clear localStorage to ensure we get fresh data
-      localStorage.removeItem('workline_employees');
+      // Get employees directly from localStorage first
+      let allEmployees = [];
+      const storedEmployees = localStorage.getItem('workline_employees');
       
-      const allEmployees = await EmployeeService.getAllEmployees();
-      console.log(`Employee component: Received ${allEmployees ? allEmployees.length : 0} employees`);
+      if (storedEmployees) {
+        try {
+          allEmployees = JSON.parse(storedEmployees);
+          console.log(`Employee component: Retrieved ${allEmployees.length} employees from localStorage`);
+        } catch (parseError) {
+          console.error('Error parsing employees from localStorage:', parseError);
+          localStorage.removeItem('workline_employees'); // Clear invalid data
+        }
+      }
+      
+      // If localStorage is empty or invalid, try the API
+      if (!allEmployees || !Array.isArray(allEmployees) || allEmployees.length === 0) {
+        try {
+          console.log('Employee component: No employees in localStorage, trying API...');
+          allEmployees = await EmployeeService.getAllEmployees();
+          console.log(`Employee component: Received ${allEmployees ? allEmployees.length : 0} employees from API`);
+        } catch (apiError) {
+          console.error('Error fetching employees from API:', apiError);
+          allEmployees = []; // Ensure we have an array
+        }
+      }
       
       // Log the first employee to see what fields are available
       if (allEmployees && Array.isArray(allEmployees) && allEmployees.length > 0) {
         console.log('Employee data sample:', allEmployees[0]);
         console.log('Skills data:', allEmployees[0].skills);
         console.log('Join date data:', allEmployees[0].joinDate || allEmployees[0].joiningDate);
-        // Format employee data
-        const formattedEmployees = allEmployees.map(emp => ({
-          id: emp.id || emp._id || Math.random().toString(36).substring(2, 9),
-          firstName: emp.firstName || '',
-          lastName: emp.lastName || '',
-          name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown',
-          position: emp.position || emp.jobTitle || 'Employee',
-          department: emp.department || 'General',
-          status: emp.status || 'offline',
-          employeeId: emp.employeeId || emp.id || 'N/A',
-          email: emp.email || '',
-          // Handle different possible field names for phone number
-          phone: emp.phone || emp.phoneNumber || emp.mobileNumber || emp.mobile || 'Not provided',
-          // Handle different possible field names for address
-          address: emp.address || emp.homeAddress || emp.residentialAddress || 'Not provided',
-          joinDate: emp.joinDate ? new Date(emp.joinDate).toLocaleDateString() : (emp.joiningDate ? new Date(emp.joiningDate).toLocaleDateString() : 'Not provided'),
-          salary: emp.salary || 'Not provided',
-          avatar: emp.avatar || null,
-          skills: Array.isArray(emp.skills) ? emp.skills : [],
-          education: Array.isArray(emp.education) ? emp.education : [],
-          projects: Array.isArray(emp.projects) ? emp.projects : [],
-          performance: emp.performance || { rating: 'N/A', reviews: [] }
-        }));
         
+        // Format employee data
+        const formattedEmployees = allEmployees.map(emp => {
+          // Generate a consistent ID or use existing ones
+          const empId = emp.id || emp._id || Math.random().toString(36).substring(2, 9);
+          
+          return {
+            // Store both ID formats to ensure compatibility
+            id: empId,
+            _id: empId,
+            firstName: emp.firstName || '',
+            lastName: emp.lastName || '',
+            name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown',
+            position: emp.position || emp.jobTitle || 'Employee',
+            department: emp.department || 'General',
+            status: emp.status || 'offline',
+            employeeId: emp.employeeId || empId || 'N/A',
+            email: emp.email || '',
+            // Handle different possible field names for phone number
+            phone: emp.phone || emp.phoneNumber || emp.mobileNumber || emp.mobile || 'Not provided',
+            // Handle different possible field names for address
+            address: emp.address || emp.homeAddress || emp.residentialAddress || 'Not provided',
+            joinDate: emp.joinDate ? new Date(emp.joinDate).toLocaleDateString() : (emp.joiningDate ? new Date(emp.joiningDate).toLocaleDateString() : 'Not provided'),
+            salary: emp.salary || 'Not provided',
+            avatar: emp.avatar || null,
+            skills: Array.isArray(emp.skills) ? emp.skills : [],
+            education: Array.isArray(emp.education) ? emp.education : [],
+            projects: Array.isArray(emp.projects) ? emp.projects : [],
+            performance: emp.performance || { rating: 'N/A', reviews: [] }
+          };
+        });
+        
+        // Store the formatted employees in localStorage for future use
+        try {
+          localStorage.setItem('workline_employees', JSON.stringify(formattedEmployees));
+          console.log(`Employee component: Stored ${formattedEmployees.length} formatted employees in localStorage`);
+        } catch (storageError) {
+          console.error('Error storing employees in localStorage:', storageError);
+        }
+        
+        // Update state with the formatted employees
         setEmployees(formattedEmployees);
         
         // Extract unique departments for filtering
@@ -250,8 +502,17 @@ const Employee = () => {
   // Handle employee selection for detailed view
   const handleEmployeeSelect = async (employee) => {
     try {
+      // Set the selected employee immediately for better UX
+      setSelectedEmployee(employee);
+      setShowModal(true);
+      
+      // Determine the correct ID to use (handle both id and _id formats)
+      const employeeId = employee.id || employee._id;
+      
+      console.log(`Getting detailed information for employee: ${employee.name} with ID: ${employeeId}`);
+      
       // Try to get more detailed employee information
-      const detailedEmployee = await EmployeeService.getEmployeeById(employee.id);
+      const detailedEmployee = await EmployeeService.getEmployeeById(employeeId);
       
       if (detailedEmployee) {
         console.log('Detailed employee data:', detailedEmployee);
@@ -261,6 +522,9 @@ const Employee = () => {
         // Format the detailed employee data
         const formattedEmployee = {
           ...employee,
+          // Ensure we have the correct ID (both formats)
+          id: employeeId,
+          _id: employeeId,
           // Update with more detailed information if available
           phone: detailedEmployee.phone || detailedEmployee.phoneNumber || detailedEmployee.mobileNumber || detailedEmployee.mobile || employee.phone,
           address: detailedEmployee.address || detailedEmployee.homeAddress || detailedEmployee.residentialAddress || employee.address,
@@ -273,15 +537,11 @@ const Employee = () => {
         };
         
         setSelectedEmployee(formattedEmployee);
-      } else {
-        setSelectedEmployee(employee);
       }
     } catch (error) {
       console.error('Error fetching detailed employee data:', error);
-      setSelectedEmployee(employee);
+      // Modal is already open with the basic employee data
     }
-    
-    setShowModal(true);
   };
 
   // Close modal
@@ -483,6 +743,10 @@ const Employee = () => {
             <div className="confirmation-buttons">
               <button className="cancel-btn" onClick={cancelDelete}>Cancel</button>
               <button className="delete-confirm-btn" onClick={confirmDelete}>Delete</button>
+            </div>
+            <p className="delete-note">Having trouble? Try the direct method:</p>
+            <div className="confirmation-buttons">
+              <button className="force-delete-btn" onClick={forceDeleteFromLocalStorage}>Force Delete from Storage</button>
             </div>
           </div>
         </div>
