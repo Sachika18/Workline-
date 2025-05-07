@@ -1,0 +1,86 @@
+/* Real-time status indicators */
+.status-indicator {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
+.status-indicator.online {
+  background-color: #05CD99;
+  box-shadow: 0 0 0 2px rgba(5, 205, 153, 0.3);
+  animation: pulse-online 2s infinite;
+}
+
+.status-indicator.away {
+  background-color: #FFB547;
+  box-shadow: 0 0 0 2px rgba(255, 181, 71, 0.3);
+}
+
+.status-indicator.offline {
+  background-color: #A3AED0;
+}
+
+@keyframes pulse-online {
+  0% {
+    box-shadow: 0 0 0 0 rgba(5, 205, 153, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(5, 205, 153, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(5, 205, 153, 0);
+  }
+}
+
+/* Loading and empty states for employee list */
+.loading-employees, .no-employees {
+  padding: 20px;
+  text-align: center;
+  color: #707EAE;
+  font-size: 0.9rem;
+}
+
+/* Employee avatar with status */
+.employee-avatar {
+  position: relative;
+  margin-right: 15px;
+}
+
+.employee-avatar img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid white;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Real-time status text */
+.employee-status-text {
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.employee-status-text.online {
+  color: #05CD99;
+}
+
+.employee-status-text.away {
+  color: #FFB547;
+}
+
+.employee-status-text.offline {
+  color: #707EAE;
+}
+
+/* Last activity timestamp */
+.last-activity {
+  font-size: 0.7rem;
+  color: #A3AED0;
+  margin-top: 2px;
+}
