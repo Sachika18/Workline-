@@ -40,6 +40,7 @@ function App() {
         <Route path="/admin/profile" element={<Profile />} />
         <Route path="/admin/employees" element={<Employee />} />
         <Route path="/admin/attendance" element={<AdminAttendance />} />
+        <Route path="/admin/settings" element={<Settings />} />
         <Route path="/enhancednotifications" element={<EnhancedNotifications />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/" element={<Navigate to="/login" />} />

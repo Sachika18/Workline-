@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './Settings.css';
 import { useTheme } from '../context/ThemeContext';
 
 const Settings = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { darkMode, setDarkMode } = useTheme();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [language, setLanguage] = useState('english');
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [saveStatus, setSaveStatus] = useState('');
+  
+  // Check if we're in the admin route
+  const isAdminRoute = location.pathname.includes('/admin/');
 
   // Check if user is logged in and fetch user data
   useEffect(() => {
@@ -22,6 +26,9 @@ const Settings = () => {
           navigate('/login');
           return;
         }
+        
+        // Update page title based on route
+        document.title = isAdminRoute ? 'Admin Settings | WorkLine' : 'Settings | WorkLine';
 
         // Load saved settings from localStorage
         const savedSettings = JSON.parse(localStorage.getItem('userSettings') || '{}');
@@ -110,8 +117,8 @@ const Settings = () => {
   return (
     <div className="settings-container">
       <div className="settings-header">
-        <h1>Settings</h1>
-        <p>Manage your application preferences</p>
+        <h1>{isAdminRoute ? 'Admin Settings' : 'Settings'}</h1>
+        <p>Manage your {isAdminRoute ? 'admin portal' : 'application'} preferences</p>
       </div>
 
       <div className="settings-content">
@@ -203,6 +210,39 @@ const Settings = () => {
             </div>
           </div>
         </div>
+        
+        {isAdminRoute && (
+          <div className="settings-card">
+            <h2>Admin Controls</h2>
+            
+            <div className="setting-item">
+              <div className="setting-info">
+                <h3>System Maintenance Mode</h3>
+                <p>Temporarily disable user access for maintenance</p>
+              </div>
+              <div className="setting-control">
+                <label className="toggle-switch">
+                  <input 
+                    type="checkbox" 
+                    checked={false} 
+                    onChange={() => alert('This feature is not yet implemented')}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+            
+            <div className="setting-item">
+              <div className="setting-info">
+                <h3>Data Backup</h3>
+                <p>Create a backup of all system data</p>
+              </div>
+              <div className="setting-control">
+                <button className="change-button" onClick={() => alert('Backup feature not yet implemented')}>Backup Now</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="settings-actions">
           <button className="save-settings-btn" onClick={handleSaveSettings}>

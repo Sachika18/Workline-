@@ -6,7 +6,7 @@ import {
   Filter, AlertCircle, Clock, Plus, Edit, MessageSquare, Check, X
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import Navbar from './Navbar';
+import AdminNavbar from './AdminNavbar';
 import DocumentService from './services/DocumentService';
 import fetchApi from '../utils/fetchApi';
 
@@ -528,7 +528,7 @@ const AdminDocuments = () => {
 
   return (
     <div>
-      <Navbar />
+      <AdminNavbar onSidebarToggle={() => {}} />
       <div className="admin-documents-container">
         {/* Sidebar */}
         <div className="sidebar">

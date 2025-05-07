@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import './AdminLeaveManagement.css';
+import AdminNavbar from './AdminNavbar';
 
 const AdminLeaveManagement = () => {
   const navigate = useNavigate();
@@ -265,6 +266,8 @@ const AdminLeaveManagement = () => {
   }
 
   return (
+    <div>
+    <AdminNavbar onSidebarToggle={() => {}} />
     <div className="admin-leave-management">
       <h2>Leave Management</h2>
       
@@ -458,6 +461,7 @@ const AdminLeaveManagement = () => {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 };
