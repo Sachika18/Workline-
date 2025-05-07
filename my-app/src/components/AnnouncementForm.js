@@ -1,14 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './AnnouncementForm.css';
 
-const AnnouncementForm = () => {
+const AnnouncementForm = ({ onAnnouncementPosted, adminDepartment = 'admin' }) => {
   const [announcement, setAnnouncement] = useState({
     title: '',
     content: '',
     priority: 'normal',
     targetDepartments: [],
-    expiryDate: ''
+    expiryDate: '',
+    createdByDepartment: adminDepartment
   });
+  
+  // Log admin department for debugging
+  useEffect(() => {
+    console.log('AnnouncementForm: Admin department:', adminDepartment);
+  }, [adminDepartment]);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState({
@@ -17,14 +23,20 @@ const AnnouncementForm = () => {
     message: ''
   });
 
+  // Updated department IDs to match MongoDB exactly
   const departments = [
     { id: 'all', name: 'All Departments' },
-    { id: 'hr', name: 'HR' },
-    { id: 'tech', name: 'Technology' },
-    { id: 'finance', name: 'Finance' },
-    { id: 'marketing', name: 'Marketing' },
-    { id: 'operations', name: 'Operations' }
+    { id: 'HR Department', name: 'HR Department' },
+    { id: 'Tech Department', name: 'Tech Department' },
+    { id: 'Finance Department', name: 'Finance Department' },
+    { id: 'Marketing Department', name: 'Marketing Department' },
+    
   ];
+  
+  // Log departments for debugging
+  useEffect(() => {
+    console.log('AnnouncementForm: Available departments:', departments.map(d => d.id));
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -114,7 +126,10 @@ const AnnouncementForm = () => {
         ...announcement,
         createdAt: new Date().toISOString(),
         // If no expiry date is set, default to 7 days from now
-        expiryDate: announcement.expiryDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        expiryDate: announcement.expiryDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        createdByDepartment: adminDepartment,
+        // Store the department that created this announcement
+        createdBy: 'Admin'
       };
       
       // Send the announcement to the backend
@@ -147,13 +162,19 @@ const AnnouncementForm = () => {
         content: '',
         priority: 'normal',
         targetDepartments: [],
-        expiryDate: ''
+        expiryDate: '',
+        createdByDepartment: adminDepartment
       });
       
       // Hide success message after 3 seconds
       setTimeout(() => {
         setSubmitStatus(prev => ({ ...prev, show: false }));
       }, 3000);
+      
+      // Call the callback to refresh announcements list
+      if (onAnnouncementPosted) {
+        onAnnouncementPosted();
+      }
       
     } catch (error) {
       console.error('Error posting announcement:', error);

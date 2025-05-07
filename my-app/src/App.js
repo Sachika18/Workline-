@@ -17,6 +17,8 @@ import AdminTaskPage from './components/Admintask';
 import AdminLeaveManagement from './components/AdminLeaveManagement';
 import AdminDocuments from './components/AdminDocuments';
 import Settings from './components/Settings';
+import Employee from './components/Employee';
+import AdminAttendance from './components/AdminAttendance';
   
 function App() {
   return (
@@ -36,6 +38,8 @@ function App() {
         <Route path="/admin/leaves" element={<AdminLeaveManagement />} />
         <Route path="/admin/documents" element={<AdminDocuments />} />
         <Route path="/admin/profile" element={<Profile />} />
+        <Route path="/admin/employees" element={<Employee />} />
+        <Route path="/admin/attendance" element={<AdminAttendance />} />
         <Route path="/enhancednotifications" element={<EnhancedNotifications />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/" element={<Navigate to="/login" />} />

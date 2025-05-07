@@ -17,6 +17,7 @@ const AdminDash = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [employees, setEmployees] = useState([]);
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
+  const [announcements, setAnnouncements] = useState([]);
   const [departmentStats, setDepartmentStats] = useState({
     hr: { headcount: 12, attendance: 96, tasks: 24 },
     tech: { headcount: 38, attendance: 94, tasks: 56 },
@@ -84,6 +85,19 @@ const AdminDash = () => {
   useEffect(() => {
     setSidebarOpen(false);
   }, [location]);
+  
+  // Fetch announcements when admin data changes
+  useEffect(() => {
+    if (admin) {
+      console.log('Admin data updated, fetching announcements...', {
+        adminId: admin.id,
+        adminName: `${admin.firstName} ${admin.lastName}`,
+        adminDepartment: admin.department,
+        adminRole: admin.role
+      });
+      fetchAnnouncements();
+    }
+  }, [admin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update the current time every second
   useEffect(() => {
@@ -93,6 +107,188 @@ const AdminDash = () => {
 
     return () => clearInterval(timer);
   }, []);
+
+  // Fetch announcements
+  const fetchAnnouncements = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+      
+      // Fetch announcements from API
+      const response = await fetch('http://localhost:8080/api/announcements', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch announcements');
+      }
+      
+      const data = await response.json();
+      
+      // Sort announcements by creation date (newest first)
+      const sortedAnnouncements = data.sort((a, b) => 
+        new Date(b.createdAt) - new Date(a.createdAt)
+      );
+      
+      // Filter announcements based on admin's department
+      const userDepartment = admin?.department?.toLowerCase() || '';
+      console.log('Admin department:', userDepartment);
+      
+      // Log all announcements and their target departments
+      console.log('All announcements:', sortedAnnouncements.map(a => ({
+        title: a.title,
+        targetDepartments: a.targetDepartments
+      })));
+      
+      const filteredAnnouncements = sortedAnnouncements.filter(announcement => {
+        // Log each announcement's target departments for debugging
+        console.log(`Announcement "${announcement.title}" targets:`, announcement.targetDepartments);
+        
+        // Include announcements targeted to all departments
+        if (announcement.targetDepartments.includes('all')) {
+          console.log(`Announcement "${announcement.title}" included: targets all departments`);
+          return true;
+        }
+        
+        // Include announcements targeted to the admin's department (case-insensitive comparison)
+        if (userDepartment && announcement.targetDepartments.some(dept => 
+          dept.toLowerCase() === userDepartment.toLowerCase()
+        )) {
+          console.log(`Announcement "${announcement.title}" included: targets admin's department (${userDepartment})`);
+          return true;
+        }
+        
+        // Log the mismatch for debugging
+        if (userDepartment) {
+          console.log(`Department comparison failed for "${announcement.title}":`, {
+            adminDepartment: userDepartment,
+            targetDepartments: announcement.targetDepartments.map(d => d.toLowerCase()),
+            matches: announcement.targetDepartments.map(d => d.toLowerCase() === userDepartment.toLowerCase())
+          });
+        }
+        
+        // If admin has no department but is an admin, show all announcements
+        if (!userDepartment && admin?.role === 'admin') {
+          console.log(`Announcement "${announcement.title}" included: admin has no department but is an admin`);
+          return true;
+        }
+        
+        console.log(`Announcement "${announcement.title}" excluded: not relevant to admin's department (${userDepartment})`);
+        return false;
+      });
+      
+      console.log('Filtered announcements:', filteredAnnouncements.length);
+      setAnnouncements(filteredAnnouncements);
+      
+    } catch (error) {
+      console.error('Error fetching announcements:', error);
+      // If API fails, use mock data and filter based on admin's department
+      const mockAnnouncements = [
+        {
+          _id: '1',
+          title: 'Company Meeting',
+          content: 'There will be a company-wide meeting on Friday at 3 PM in the main conference room.',
+          priority: 'high',
+          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          targetDepartments: ['all'],
+          createdBy: 'Admin'
+        },
+        {
+          _id: '2',
+          title: 'New Project Launch',
+          content: 'We are excited to announce the launch of our new project "Phoenix". More details will be shared soon.',
+          priority: 'normal',
+          createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+          targetDepartments: ['Technology', 'Marketing'],
+          createdBy: 'Admin'
+        },
+        {
+          _id: '3',
+          title: 'Office Closure',
+          content: 'The office will be closed on Monday for maintenance. Please work from home.',
+          priority: 'urgent',
+          createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+          targetDepartments: ['all'],
+          createdBy: 'Admin'
+        },
+        {
+          _id: '4',
+          title: 'HR Department Update',
+          content: 'New HR policies will be effective from next month. Please review the attached documents.',
+          priority: 'normal',
+          createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+          targetDepartments: ['HR'],
+          createdBy: 'Admin'
+        },
+        {
+          _id: '5',
+          title: 'Finance Department Meeting',
+          content: 'Quarterly budget review meeting on Thursday at 2 PM.',
+          priority: 'high',
+          createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+          targetDepartments: ['Finance'],
+          createdBy: 'Admin'
+        }
+      ];
+      
+      // Filter mock announcements based on admin's department
+      const userDepartment = admin?.department?.toLowerCase() || '';
+      console.log('Admin department (mock):', userDepartment);
+      
+      // Log all mock announcements and their target departments
+      console.log('All mock announcements:', mockAnnouncements.map(a => ({
+        title: a.title,
+        targetDepartments: a.targetDepartments
+      })));
+      
+      const filteredMockAnnouncements = mockAnnouncements.filter(announcement => {
+        // Log each announcement's target departments for debugging
+        console.log(`Mock announcement "${announcement.title}" targets:`, announcement.targetDepartments);
+        
+        // Include announcements targeted to all departments
+        if (announcement.targetDepartments.includes('all')) {
+          console.log(`Mock announcement "${announcement.title}" included: targets all departments`);
+          return true;
+        }
+        
+        // Include announcements targeted to the admin's department (case-insensitive comparison)
+        if (userDepartment && announcement.targetDepartments.some(dept => 
+          dept.toLowerCase() === userDepartment.toLowerCase()
+        )) {
+          console.log(`Mock announcement "${announcement.title}" included: targets admin's department (${userDepartment})`);
+          return true;
+        }
+        
+        // Log the mismatch for debugging
+        if (userDepartment) {
+          console.log(`Department comparison failed for mock "${announcement.title}":`, {
+            adminDepartment: userDepartment,
+            targetDepartments: announcement.targetDepartments.map(d => d.toLowerCase()),
+            matches: announcement.targetDepartments.map(d => d.toLowerCase() === userDepartment.toLowerCase())
+          });
+        }
+        
+        // If admin has no department but is an admin, show all announcements
+        if (!userDepartment && admin?.role === 'admin') {
+          console.log(`Mock announcement "${announcement.title}" included: admin has no department but is an admin`);
+          return true;
+        }
+        
+        console.log(`Mock announcement "${announcement.title}" excluded: not relevant to admin's department (${userDepartment})`);
+        return false;
+      });
+      
+      console.log('Filtered mock announcements:', filteredMockAnnouncements.length);
+      setAnnouncements(filteredMockAnnouncements);
+    }
+  };
 
   // Fetch system statistics
   const fetchSystemStats = async () => {
@@ -221,16 +417,18 @@ const AdminDash = () => {
         console.log("Admin data received:", data);
         console.log("Admin name:", data.firstName, data.lastName);
         console.log("Employee ID:", data.employeeId);
-        setAdmin(data);
+        console.log("Department:", data.department || 'Not specified');
         
-        // Keep your existing mock data for now
-        setEmployees([
-          { id: 1, name: 'John Doe', position: 'Frontend Developer', department: 'Tech', status: 'online', employeeId: '1A002' },
-          { id: 2, name: 'Sarah Smith', position: 'HR Manager', department: 'HR', status: 'online', employeeId: '1A003' },
-          { id: 3, name: 'Mike Johnson', position: 'UI/UX Designer', department: 'Tech', status: 'away', employeeId: '1A004' },
-          { id: 4, name: 'Emily Davis', position: 'Product Manager', department: 'Marketing', status: 'offline', employeeId: '1A005' },
-          { id: 5, name: 'David Wilson', position: 'Accountant', department: 'Finance', status: 'online', employeeId: '1A006' }
-        ]);
+        // Ensure department is set (convert to lowercase for consistency)
+        const adminData = {
+          ...data,
+          department: data.department ? data.department.toLowerCase() : '',
+          role: data.role || 'admin' // Ensure role is set
+        };
+        
+        setAdmin(adminData);
+        
+        // We already fetched employees data above, no need to set hardcoded values here
         
       } catch (error) {
         console.error('Error details:', error);
@@ -244,6 +442,8 @@ const AdminDash = () => {
           email: 'admin@example.com',
           position: 'Administrator',
           employeeId: '1A001',
+          department: 'admin',
+          role: 'admin',
           avatar: null
         });
       } finally {
@@ -293,11 +493,7 @@ const AdminDash = () => {
                 <span className="menu-icon">👥</span> Employees
               </Link>
             </li>
-            <li>
-              <Link to="/admin/departments" style={{ color: 'inherit', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
-                <span className="menu-icon">🏢</span> Departments
-              </Link>
-            </li>
+
             <li>
               <Link to="/admin/attendance" style={{ color: 'inherit', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
                 <span className="menu-icon">📅</span> Attendance
@@ -318,11 +514,7 @@ const AdminDash = () => {
                 <span className="menu-icon">📄</span> Documents
               </Link>
             </li>
-            <li>
-              <Link to="/admin/reports" style={{ color: 'inherit', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
-                <span className="menu-icon">📊</span> Reports
-              </Link>
-            </li>
+
             <li>
               <Link to="/admin/settings" style={{ color: 'inherit', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
                 <span className="menu-icon">⚙️</span> Settings
@@ -391,14 +583,6 @@ const AdminDash = () => {
           </div>
           
           <div className="admin-actions">
-            <button className="admin-action-button">
-              <span className="action-icon">➕</span>
-              Add Employee
-            </button>
-            <button className="admin-action-button">
-              <span className="action-icon">📊</span>
-              Generate Report
-            </button>
             <button 
               className="admin-action-button"
               onClick={() => {
@@ -417,68 +601,80 @@ const AdminDash = () => {
           </div>
         </section>
 
-        {/* System Stats */}
-        <section className="stats-section">
+        {/* Announcements Section */}
+        <section className="announcements-section">
           <div className="section-header">
-            <h2>System Overview</h2>
-            <button onClick={() => fetchSystemStats()}>Refresh Data</button>
+            <h2>Announcements</h2>
+            <button onClick={() => fetchAnnouncements()}>Refresh</button>
           </div>
           
-          <div className="stats-grid">
-            <div className="stat-card" style={{ borderLeftColor: '#05CD99' }}>
-              <span className="stat-icon" role="img" aria-label="Employees">👥</span>
-              <h3>Total Employees</h3>
-              <p>{systemStats.totalEmployees}</p>
-            </div>
-            
-            <div className="stat-card" style={{ borderLeftColor: '#4318FF' }}>
-              <span className="stat-icon" role="img" aria-label="Active">🟢</span>
-              <h3>Active Employees</h3>
-              <p>{systemStats.activeNow}</p>
-            </div>
-            
-            <div className="stat-card" style={{ borderLeftColor: '#FFB547' }}>
-              <span className="stat-icon" role="img" aria-label="New Employees">🆕</span>
-              <h3>New Employees</h3>
-              <p>{systemStats.newEmployees}</p>
-            </div>
-            
-            <div className="stat-card" style={{ borderLeftColor: '#4318FF' }}>
-              <span className="stat-icon" role="img" aria-label="Completed Tasks">✅</span>
-              <h3>Completed Tasks</h3>
-              <p>{systemStats.completedTasks}</p>
-            </div>
-            
-            <div className="stat-card" style={{ borderLeftColor: '#FFB547' }}>
-              <span className="stat-icon" role="img" aria-label="Ongoing Tasks">🔄</span>
-              <h3>Ongoing Tasks</h3>
-              <p>{systemStats.ongoingTasks}</p>
-            </div>
-            
-            <div className="stat-card" style={{ borderLeftColor: '#05CD99' }}>
-              <span className="stat-icon" role="img" aria-label="New Tasks">📋</span>
-              <h3>New Tasks</h3>
-              <p>{systemStats.newTasks}</p>
-            </div>
-            
-            <div className="stat-card" style={{ borderLeftColor: '#FFB547' }}>
-              <span className="stat-icon" role="img" aria-label="Tasks Due Soon">⏰</span>
-              <h3>Tasks Due Soon</h3>
-              <p>{systemStats.tasksDueSoon}</p>
-            </div>
-            
-            <div className="stat-card" style={{ borderLeftColor: '#FF5252' }}>
-              <span className="stat-icon" role="img" aria-label="Overdue Tasks">⚠️</span>
-              <h3>Overdue Tasks</h3>
-              <p>{systemStats.overdueTasks}</p>
-            </div>
+          <div className="announcements-container">
+            {announcements.length > 0 ? (
+              announcements.map(announcement => (
+                <div 
+                  key={announcement._id} 
+                  className={`announcement-card priority-${announcement.priority}`}
+                >
+                  <div className="announcement-header">
+                    <h3>{announcement.title}</h3>
+                    <div className="announcement-meta">
+                      <span className="announcement-date">
+                        {new Date(announcement.createdAt).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </span>
+                      <span className={`priority-badge ${announcement.priority}`}>
+                        {announcement.priority.charAt(0).toUpperCase() + announcement.priority.slice(1)}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="announcement-content">
+                    <p>{announcement.content}</p>
+                  </div>
+                  
+                  <div className="announcement-footer">
+                    <div className="target-departments">
+                      {announcement.targetDepartments.includes('all') ? (
+                        <span className="department-tag all">All Departments</span>
+                      ) : (
+                        announcement.targetDepartments.map(dept => (
+                          <span key={dept} className={`department-tag ${dept.toLowerCase()}`}>
+                            {dept}
+                          </span>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="no-announcements">
+                <p>No announcements available.</p>
+                <button 
+                  onClick={() => {
+                    setShowAnnouncementForm(true);
+                    setTimeout(() => {
+                      document.getElementById('announcement-section').scrollIntoView({ behavior: 'smooth' });
+                    }, 100);
+                  }}
+                >
+                  Create Announcement
+                </button>
+              </div>
+            )}
           </div>
         </section>
 
         {/* Announcement Form */}
         {showAnnouncementForm && (
           <section id="announcement-section">
-            <AnnouncementForm />
+            <AnnouncementForm 
+              onAnnouncementPosted={fetchAnnouncements} 
+              adminDepartment={admin?.department || 'admin'}
+            />
           </section>
         )}
 
@@ -502,7 +698,11 @@ const AdminDash = () => {
                 </div>
                 <div className="dept-stat">
                   <p>Attendance</p>
-                  <h4>{departmentStats.hr.attendance}%</h4>
+                  <h4>
+                    <Link to="/admin/attendance" style={{ color: 'inherit', textDecoration: 'none' }}>
+                      {departmentStats.hr.attendance}%
+                    </Link>
+                  </h4>
                 </div>
                 <div className="dept-stat">
                   <p>Tasks</p>
@@ -524,7 +724,11 @@ const AdminDash = () => {
                 </div>
                 <div className="dept-stat">
                   <p>Attendance</p>
-                  <h4>{departmentStats.tech.attendance}%</h4>
+                  <h4>
+                    <Link to="/admin/attendance" style={{ color: 'inherit', textDecoration: 'none' }}>
+                      {departmentStats.tech.attendance}%
+                    </Link>
+                  </h4>
                 </div>
                 <div className="dept-stat">
                   <p>Tasks</p>
@@ -546,7 +750,11 @@ const AdminDash = () => {
                 </div>
                 <div className="dept-stat">
                   <p>Attendance</p>
-                  <h4>{departmentStats.finance.attendance}%</h4>
+                  <h4>
+                    <Link to="/admin/attendance" style={{ color: 'inherit', textDecoration: 'none' }}>
+                      {departmentStats.finance.attendance}%
+                    </Link>
+                  </h4>
                 </div>
                 <div className="dept-stat">
                   <p>Tasks</p>
@@ -568,7 +776,11 @@ const AdminDash = () => {
                 </div>
                 <div className="dept-stat">
                   <p>Attendance</p>
-                  <h4>{departmentStats.marketing.attendance}%</h4>
+                  <h4>
+                    <Link to="/admin/attendance" style={{ color: 'inherit', textDecoration: 'none' }}>
+                      {departmentStats.marketing.attendance}%
+                    </Link>
+                  </h4>
                 </div>
                 <div className="dept-stat">
                   <p>Tasks</p>
@@ -628,11 +840,7 @@ const AdminDash = () => {
               <p>5 pending requests</p>
             </div>
             
-            <div className="admin-action-card">
-              <span className="action-icon">📊</span>
-              <h3>Generate Reports</h3>
-              <p>Attendance, Performance</p>
-            </div>
+
             
             <div className="admin-action-card">
               <span className="action-icon">📅</span>
@@ -713,9 +921,9 @@ const AdminDash = () => {
             ))}
           </div>
           
-          <button className="view-all-employees" onClick={() => navigate('/admin/employees')}>
+          <Link to="/admin/employees" className="view-all-link">
             View All Employees ({employees.length})
-          </button>
+          </Link>
         </div>
 
         {/* Today's Summary */}

@@ -626,6 +626,25 @@
     font-weight: 500;
     cursor: pointer;
     transition: color 0.2s ease;
+}
+
+.view-all-link {
+    display: block;
+    text-align: center;
+    padding: 10px;
+    margin-top: 15px;
+    background-color: #f6f8fd;
+    color: #4318FF;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: all 0.3s ease;
+}
+
+.view-all-link:hover {
+    background-color: #4318FF;
+    color: white;
   }
 
   .employee-quick-view .section-header button:hover {
@@ -1034,3 +1053,185 @@
       justify-content: center;
     }
   }
+  
+/* Announcements Section */
+.announcements-section {
+  background-color: #fff;
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 30px;
+  box-shadow: 0 4px 20px rgba(44, 39, 56, 0.04);
+}
+
+.announcements-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.announcement-card {
+  background-color: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border-left: 4px solid #4318FF;
+  transition: transform 0.3s ease;
+}
+
+.announcement-card:hover {
+  transform: translateY(-5px);
+}
+
+.announcement-card.priority-urgent {
+  border-left-color: #FF5252;
+}
+
+.announcement-card.priority-high {
+  border-left-color: #FFB547;
+}
+
+.announcement-card.priority-normal {
+  border-left-color: #4318FF;
+}
+
+.announcement-card.priority-low {
+  border-left-color: #05CD99;
+}
+
+.announcement-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+}
+
+.announcement-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2B3674;
+  margin: 0;
+}
+
+.announcement-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.announcement-date {
+  font-size: 12px;
+  color: #A3AED0;
+}
+
+.priority-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.priority-badge.urgent {
+  background-color: rgba(255, 82, 82, 0.1);
+  color: #FF5252;
+}
+
+.priority-badge.high {
+  background-color: rgba(255, 181, 71, 0.1);
+  color: #FFB547;
+}
+
+.priority-badge.normal {
+  background-color: rgba(67, 24, 255, 0.1);
+  color: #4318FF;
+}
+
+.priority-badge.low {
+  background-color: rgba(5, 205, 153, 0.1);
+  color: #05CD99;
+}
+
+.announcement-content {
+  margin-bottom: 15px;
+}
+
+.announcement-content p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #4F5E74;
+  margin: 0;
+}
+
+.announcement-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.target-departments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.department-tag {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  background-color: #f8f9fa;
+  color: #4F5E74;
+}
+
+.department-tag.all {
+  background-color: rgba(67, 24, 255, 0.1);
+  color: #4318FF;
+}
+
+.department-tag.hr {
+  background-color: rgba(255, 82, 82, 0.1);
+  color: #FF5252;
+}
+
+.department-tag.tech {
+  background-color: rgba(5, 205, 153, 0.1);
+  color: #05CD99;
+}
+
+.department-tag.finance {
+  background-color: rgba(255, 181, 71, 0.1);
+  color: #FFB547;
+}
+
+.department-tag.marketing {
+  background-color: rgba(67, 24, 255, 0.1);
+  color: #4318FF;
+}
+
+.department-tag.operations {
+  background-color: rgba(144, 19, 254, 0.1);
+  color: #9013FE;
+}
+
+.no-announcements {
+  text-align: center;
+  padding: 40px 0;
+  color: #A3AED0;
+}
+
+.no-announcements button {
+  margin-top: 15px;
+  padding: 10px 20px;
+  background-color: #4318FF;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.3s;
+}
+
+.no-announcements button:hover {
+  background-color: #3311CC;
+}
