@@ -6,6 +6,7 @@ import MobileMenu from './MobileMenu';
 import AnnouncementForm from './AnnouncementForm';
 import TaskService from './services/TaskService';
 import EmployeeService from './services/EmployeeService';
+import DocumentService from './services/DocumentService';
 
 const AdminDash = () => {
   const navigate = useNavigate();
@@ -17,12 +18,13 @@ const AdminDash = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [employees, setEmployees] = useState([]);
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
+  const [showAllAnnouncements, setShowAllAnnouncements] = useState(false);
   const [announcements, setAnnouncements] = useState([]);
   const [departmentStats, setDepartmentStats] = useState({
-    hr: { headcount: 12, attendance: 96, tasks: 24 },
-    tech: { headcount: 38, attendance: 94, tasks: 56 },
-    finance: { headcount: 8, attendance: 98, tasks: 18 },
-    marketing: { headcount: 15, attendance: 92, tasks: 32 }
+    hr: { headcount: 0, attendance: 0, tasks: 0 },
+    tech: { headcount: 0, attendance: 0, tasks: 0 },
+    finance: { headcount: 0, attendance: 0, tasks: 0 },
+    marketing: { headcount: 0, attendance: 0, tasks: 0 }
   });
   const [systemStats, setSystemStats] = useState({
     totalEmployees: 0,
@@ -34,36 +36,8 @@ const AdminDash = () => {
     overdueTasks: 0,
     newEmployees: 0
   });
-  const [recentActivity, setRecentActivity] = useState([
-    { 
-      id: 1, 
-      type: 'checkin', 
-      user: 'John Doe', 
-      timestamp: new Date(new Date().setHours(new Date().getHours() - 1)),
-      details: 'Checked in at 8:30 AM'
-    },
-    { 
-      id: 2, 
-      type: 'request', 
-      user: 'Sarah Smith', 
-      timestamp: new Date(new Date().setHours(new Date().getHours() - 2)),
-      details: 'Requested time off for next week'
-    },
-    { 
-      id: 3, 
-      type: 'task', 
-      user: 'Mike Johnson', 
-      timestamp: new Date(new Date().setHours(new Date().getHours() - 3)),
-      details: 'Completed Q1 Report review'
-    },
-    { 
-      id: 4, 
-      type: 'alert', 
-      user: 'Emily Davis', 
-      timestamp: new Date(new Date().setHours(new Date().getHours() - 4)),
-      details: 'Exceeded overtime limit this week'
-    }
-  ]);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [showAllActivities, setShowAllActivities] = useState(false);
 
   // Toggle sidebar for mobile
   const toggleSidebar = () => {
@@ -303,25 +277,155 @@ const AdminDash = () => {
       const taskStats = await TaskService.getAdminTaskStats();
       console.log('AdminDash: Task statistics:', taskStats);
       
+      // Get attendance statistics from API
+      let attendanceStats = {
+        totalEmployees: 0,
+        presentToday: 0,
+        absentToday: 0,
+        lateToday: 0,
+        averageAttendance: 0
+      };
+      
+      try {
+        const token = localStorage.getItem('token');
+        if (token) {
+          const response = await fetch('http://localhost:8080/api/attendance/stats', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            attendanceStats = data;
+          }
+        }
+      } catch (attendanceError) {
+        console.error('Error fetching attendance stats:', attendanceError);
+      }
+      
       // Update system stats with real data
       setSystemStats({
         totalEmployees: employeeStats.totalEmployees || 0,
-        activeNow: employeeStats.activeEmployees || 0,
+        activeNow: attendanceStats.presentToday || 0,
         completedTasks: taskStats.completedTasks || 0,
         ongoingTasks: taskStats.ongoingTasks || 0,
         newTasks: taskStats.newTasks || 0,
         tasksDueSoon: taskStats.tasksDueSoon || 0,
         overdueTasks: taskStats.overdueTasks || 0,
-        newEmployees: employeeStats.newEmployees || 0
+        newEmployees: employeeStats.newEmployees || 0,
+        presentToday: attendanceStats.presentToday || 0,
+        absentToday: attendanceStats.absentToday || 0,
+        lateToday: attendanceStats.lateToday || 0,
+        averageAttendance: attendanceStats.averageAttendance || 0
       });
       
-      console.log('AdminDash: Updated system statistics');
+      console.log('AdminDash: Updated system statistics with attendance data');
     } catch (error) {
       console.error('AdminDash: Error fetching system statistics:', error);
     }
   };
   
-  // Fetch employees
+  // Fetch document activities
+  const fetchDocumentActivities = async () => {
+    try {
+      console.log('AdminDash: Fetching document activities');
+      
+      // Create an instance of DocumentService
+      const documentService = new DocumentService();
+      
+      // Get activities from DocumentService
+      const response = await documentService.getAllActivities();
+      
+      if (response && response.data) {
+        // Format activities for display
+        const formattedActivities = response.data.map(activity => ({
+          id: activity.id || activity._id || Math.random().toString(36).substring(2, 9),
+          type: 'document',
+          user: activity.userName || activity.user || 'Unknown User',
+          timestamp: new Date(activity.timestamp || activity.createdAt || Date.now()),
+          details: activity.description || activity.action || 'Performed an action on a document',
+          documentName: activity.documentName || activity.document || 'Unknown Document'
+        }));
+        
+        setRecentActivity(formattedActivities);
+        console.log('AdminDash: Updated document activities with real data:', formattedActivities);
+      } else {
+        throw new Error('No activities data returned');
+      }
+    } catch (error) {
+      console.error('AdminDash: Error fetching document activities:', error);
+      
+      // Try to get activities from localStorage directly as a fallback
+      try {
+        const localActivities = localStorage.getItem('document_activities');
+        if (localActivities) {
+          const parsedActivities = JSON.parse(localActivities);
+          
+          if (Array.isArray(parsedActivities) && parsedActivities.length > 0) {
+            // Format activities from localStorage
+            const formattedLocalActivities = parsedActivities.map(activity => ({
+              id: activity.id || activity._id || Math.random().toString(36).substring(2, 9),
+              type: 'document',
+              user: activity.userName || activity.user || 'Unknown User',
+              timestamp: new Date(activity.timestamp || activity.createdAt || Date.now()),
+              details: activity.description || activity.action || 'Performed an action on a document',
+              documentName: activity.documentName || activity.document || 'Unknown Document'
+            }));
+            
+            setRecentActivity(formattedLocalActivities);
+            console.log('AdminDash: Using localStorage document activities:', formattedLocalActivities);
+            return;
+          }
+        }
+      } catch (localError) {
+        console.error('AdminDash: Error parsing localStorage activities:', localError);
+      }
+      
+      // Use mock data as a last resort
+      const mockActivities = [
+        { 
+          id: 1, 
+          type: 'document', 
+          user: 'John Doe', 
+          timestamp: new Date(new Date().setHours(new Date().getHours() - 1)),
+          details: 'Uploaded a new document: Q2 Financial Report',
+          documentName: 'Q2 Financial Report.pdf'
+        },
+        { 
+          id: 2, 
+          type: 'document', 
+          user: 'Sarah Smith', 
+          timestamp: new Date(new Date().setHours(new Date().getHours() - 2)),
+          details: 'Downloaded Employee Handbook',
+          documentName: 'Employee Handbook.pdf'
+        },
+        { 
+          id: 3, 
+          type: 'document', 
+          user: 'Mike Johnson', 
+          timestamp: new Date(new Date().setHours(new Date().getHours() - 3)),
+          details: 'Shared Project Proposal with Marketing team',
+          documentName: 'Project Proposal.docx'
+        },
+        { 
+          id: 4, 
+          type: 'document', 
+          user: 'Emily Davis', 
+          timestamp: new Date(new Date().setHours(new Date().getHours() - 4)),
+          details: 'Updated Company Policy document',
+          documentName: 'Company Policy.pdf'
+        }
+      ];
+      
+      setRecentActivity(mockActivities);
+      console.log('AdminDash: Using mock document activities as last resort');
+    }
+  };
+  
+  // Fetch employees and calculate department statistics
   const fetchEmployees = async () => {
     try {
       console.log('AdminDash: Fetching employees');
@@ -345,6 +449,83 @@ const AdminDash = () => {
         
         setEmployees(formattedEmployees);
         console.log('AdminDash: Updated employees with real data');
+        
+        // Calculate department statistics
+        const deptCounts = {
+          hr: { headcount: 0, attendance: 0, tasks: 0 },
+          tech: { headcount: 0, attendance: 0, tasks: 0 },
+          finance: { headcount: 0, attendance: 0, tasks: 0 },
+          marketing: { headcount: 0, attendance: 0, tasks: 0 }
+        };
+        
+        // Count employees by department
+        formattedEmployees.forEach(emp => {
+          const dept = emp.department.toLowerCase();
+          if (dept.includes('hr') || dept.includes('human')) {
+            deptCounts.hr.headcount++;
+          } else if (dept.includes('tech') || dept.includes('it') || dept.includes('development')) {
+            deptCounts.tech.headcount++;
+          } else if (dept.includes('finance') || dept.includes('accounting')) {
+            deptCounts.finance.headcount++;
+          } else if (dept.includes('marketing') || dept.includes('sales')) {
+            deptCounts.marketing.headcount++;
+          }
+        });
+        
+        // Get attendance data for departments
+        try {
+          const token = localStorage.getItem('token');
+          if (token) {
+            const response = await fetch('http://localhost:8080/api/attendance/department-stats', {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              
+              // Update attendance rates if available
+              if (data.hr) deptCounts.hr.attendance = data.hr.attendanceRate || 0;
+              if (data.tech) deptCounts.tech.attendance = data.tech.attendanceRate || 0;
+              if (data.finance) deptCounts.finance.attendance = data.finance.attendanceRate || 0;
+              if (data.marketing) deptCounts.marketing.attendance = data.marketing.attendanceRate || 0;
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching department attendance stats:', error);
+          
+          // Set some reasonable attendance rates as fallback
+          deptCounts.hr.attendance = 95;
+          deptCounts.tech.attendance = 92;
+          deptCounts.finance.attendance = 97;
+          deptCounts.marketing.attendance = 90;
+        }
+        
+        // Get task data for departments
+        try {
+          const taskStats = await TaskService.getDepartmentTaskStats();
+          
+          if (taskStats) {
+            if (taskStats.hr) deptCounts.hr.tasks = taskStats.hr.totalTasks || 0;
+            if (taskStats.tech) deptCounts.tech.tasks = taskStats.tech.totalTasks || 0;
+            if (taskStats.finance) deptCounts.finance.tasks = taskStats.finance.totalTasks || 0;
+            if (taskStats.marketing) deptCounts.marketing.tasks = taskStats.marketing.totalTasks || 0;
+          }
+        } catch (error) {
+          console.error('Error fetching department task stats:', error);
+          
+          // Set some reasonable task counts as fallback
+          deptCounts.hr.tasks = Math.round(deptCounts.hr.headcount * 2.5);
+          deptCounts.tech.tasks = Math.round(deptCounts.tech.headcount * 2.5);
+          deptCounts.finance.tasks = Math.round(deptCounts.finance.headcount * 2.5);
+          deptCounts.marketing.tasks = Math.round(deptCounts.marketing.headcount * 2.5);
+        }
+        
+        // Update department stats
+        setDepartmentStats(deptCounts);
       } else {
         // Fallback to mock data
         console.log('AdminDash: No employee data found, using mock data');
@@ -388,6 +569,9 @@ const AdminDash = () => {
         
         // Fetch employees
         await fetchEmployees();
+        
+        // Fetch document activities
+        await fetchDocumentActivities();
 
         const response = await fetch('http://localhost:8080/api/dashboard', {
           method: 'GET',
@@ -480,7 +664,7 @@ const AdminDash = () => {
       {/* Sidebar - with mobile toggle class */}
       <aside className={`sidebar admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="logo">
-          <h2>HRSystem</h2>
+          <h2 style={{ fontSize: '1.5rem', whiteSpace: 'nowrap' }}>WorkLine</h2>
           <span className="admin-badge">Admin</span>
         </div>
         <nav>
@@ -552,10 +736,6 @@ const AdminDash = () => {
             </div>
           </div>
           
-          <div className="search-bar">
-            <input type="text" placeholder="Search employees, departments..." />
-            <button className="search-button">🔍</button>
-          </div>
           
           <div className="user-profile">
             <Link to="/admin/notifications" style={{ textDecoration: 'none', color: 'inherit' }}>
@@ -611,12 +791,14 @@ const AdminDash = () => {
         <section className="announcements-section">
           <div className="section-header">
             <h2>Announcements</h2>
-            <button onClick={() => fetchAnnouncements()}>Refresh</button>
+            <button onClick={() => setShowAllAnnouncements(!showAllAnnouncements)}>
+              {showAllAnnouncements ? 'Show Less' : 'View All'}
+            </button>
           </div>
           
           <div className="announcements-container">
             {announcements.length > 0 ? (
-              announcements.map(announcement => (
+              (showAllAnnouncements ? announcements : announcements.slice(0, 3)).map(announcement => (
                 <div 
                   key={announcement._id} 
                   className={`announcement-card priority-${announcement.priority}`}
@@ -801,66 +983,114 @@ const AdminDash = () => {
         {/* Recent Activity */}
         <section className="recent-activity-section">
           <div className="section-header">
-            <h2>Recent Activity</h2>
-            <button>View All</button>
+            <h2>Recent Document Activity</h2>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => fetchDocumentActivities()}>Refresh</button>
+              <Link to="/admin/documents" style={{ textDecoration: 'none' }}>
+                <button>View All</button>
+              </Link>
+            </div>
           </div>
           
           <div className="activity-list">
-            {recentActivity.map(activity => (
-              <div key={activity.id} className={`activity-item ${activity.type}`}>
-                <div className="activity-icon">
-                  {activity.type === 'checkin' && '🕒'}
-                  {activity.type === 'request' && '📩'}
-                  {activity.type === 'task' && '✅'}
-                  {activity.type === 'alert' && '⚠️'}
-                </div>
-                <div className="activity-content">
-                  <h4>{activity.user}</h4>
-                  <p>{activity.details}</p>
-                  <span className="activity-time">
-                    {activity.timestamp.toLocaleString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      hour12: true
-                    })}
-                  </span>
-                </div>
-                <div className="activity-actions">
-                  <button className="view-details">View</button>
+            {recentActivity.length > 0 ? (
+              <>
+                {/* Show only the first 3 activities */}
+                {recentActivity.slice(0, 3).map(activity => (
+                  <div key={activity.id} className={`activity-item ${activity.type}`}>
+                    <div className="activity-icon" style={{ backgroundColor: 'rgba(67, 24, 255, 0.1)', color: '#4318FF' }}>
+                      📄
+                    </div>
+                    <div className="activity-content">
+                      <h4>{activity.user}</h4>
+                      <p>{activity.details}</p>
+                      {activity.documentName && (
+                        <small className="document-name" style={{ display: 'block', marginTop: '4px', color: '#4318FF' }}>
+                          <strong>Document:</strong> {activity.documentName}
+                        </small>
+                      )}
+                      <span className="activity-time" style={{ display: 'block', marginTop: '4px', fontSize: '0.7rem', color: '#A3AED0' }}>
+                        {activity.timestamp.toLocaleString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: true,
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                    <div className="activity-actions">
+                      <Link to="/admin/documents" style={{ textDecoration: 'none' }}>
+                        <button className="view-details" style={{ padding: '5px 12px', backgroundColor: 'transparent', border: '1px solid #e9ecef', borderRadius: '8px', color: '#4318FF', cursor: 'pointer', fontSize: '0.75rem' }}>
+                          Details
+                        </button>
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Show "View All" button if there are more than 3 activities */}
+                {recentActivity.length > 3 && (
+                  <div style={{ textAlign: 'center', marginTop: '15px' }}>
+                    <Link to="/admin/documents" style={{ textDecoration: 'none' }}>
+                      <button 
+                        style={{ 
+                          padding: '8px 15px', 
+                          backgroundColor: '#4318FF', 
+                          border: 'none', 
+                          borderRadius: '12px', 
+                          color: 'white', 
+                          cursor: 'pointer', 
+                          fontSize: '0.875rem' 
+                        }}
+                      >
+                        View All {recentActivity.length} Activities
+                      </button>
+                    </Link>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="no-activities" style={{ padding: '20px', textAlign: 'center', color: '#707EAE' }}>
+                <p>No recent document activities available.</p>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '10px' }}>
+                  <button 
+                    onClick={() => fetchDocumentActivities()}
+                    style={{ 
+                      padding: '8px 15px', 
+                      backgroundColor: 'transparent', 
+                      border: '1px solid #e9ecef', 
+                      borderRadius: '12px', 
+                      color: '#4318FF', 
+                      cursor: 'pointer', 
+                      fontSize: '0.875rem' 
+                    }}
+                  >
+                    Refresh Activities
+                  </button>
+                  <Link to="/admin/documents" style={{ textDecoration: 'none' }}>
+                    <button 
+                      style={{ 
+                        padding: '8px 15px', 
+                        backgroundColor: '#4318FF', 
+                        border: 'none', 
+                        borderRadius: '12px', 
+                        color: 'white', 
+                        cursor: 'pointer', 
+                        fontSize: '0.875rem' 
+                      }}
+                    >
+                      Go to Documents
+                    </button>
+                  </Link>
                 </div>
               </div>
-            ))}
+            )}
           </div>
         </section>
 
         {/* Quick Actions */}
-        <section className="admin-quick-actions">
-          <div className="section-header">
-            <h2>Administrative Actions</h2>
-          </div>
-          
-          <div className="admin-actions-grid">
-            <div className="admin-action-card">
-              <span className="action-icon">📝</span>
-              <h3>Approve Time Off</h3>
-              <p>5 pending requests</p>
-            </div>
-            
-
-            
-            <div className="admin-action-card">
-              <span className="action-icon">📅</span>
-              <h3>Schedule Events</h3>
-              <p>Create company events</p>
-            </div>
-            
-            <div className="admin-action-card">
-              <span className="action-icon">📢</span>
-              <h3>Send Announcements</h3>
-              <p>Notify all employees</p>
-            </div>
-          </div>
-        </section>
+        
       </main>
 
       {/* Right Sidebar */}
@@ -904,11 +1134,10 @@ const AdminDash = () => {
           </div>
           
           <div className="employee-list">
-            {employees.slice(0, 8).map(employee => (
+            {employees.slice(0, 3).map(employee => (
               <div key={employee.id} className="employee-item">
-                <div className={`employee-avatar ${employee.status}`}>
+                <div className="employee-avatar">
                   <img src={employee.avatar || defaultAvatar} alt={employee.name} className="member-avatar" />
-                  <span className={`status-indicator ${employee.status}`}></span>
                 </div>
                 <div className="employee-details">
                   <h4>{employee.name}</h4>

@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import EmployeeService from './services/EmployeeService';
 import defaultAvatar from '../assets/avatar.png';
 import './Employee.css';
+import AdminNavbar from './AdminNavbar';
 
 const Employee = () => {
   const navigate = useNavigate();
@@ -570,7 +571,9 @@ const Employee = () => {
   }
 
   return (
-    <div className="employee-page-container">
+    <div>
+      <AdminNavbar onSidebarToggle={() => {}} />
+      <div className="employee-page-container">
       <header className="employee-header">
         <div className="header-left">
           <h1>Employee Management</h1>
@@ -879,6 +882,7 @@ const Employee = () => {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 };

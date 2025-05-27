@@ -16,9 +16,44 @@ const SignupPage = () => {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+    const [emailError, setEmailError] = useState('');
 
     // API URL - you can easily change this if needed
     const API_URL = 'http://localhost:8080/api/auth/signup';
+
+    // Password validation function
+    const validatePassword = (password) => {
+        const errors = [];
+        
+        if (password.length < 8) {
+            errors.push("Password must be at least 8 characters long");
+        }
+        
+        if (!/[A-Z]/.test(password)) {
+            errors.push("Password must contain at least one uppercase letter");
+        }
+        
+        if (!/[a-z]/.test(password)) {
+            errors.push("Password must contain at least one lowercase letter");
+        }
+        
+        if (!/[0-9]/.test(password)) {
+            errors.push("Password must contain at least one number");
+        }
+        
+        if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+            errors.push("Password must contain at least one special character");
+        }
+        
+        return errors;
+    };
+    
+    // Email validation function
+    const validateEmail = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email) ? [] : ["Please enter a valid email address"];
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -26,11 +61,24 @@ const SignupPage = () => {
             ...prevState,
             [name]: value
         }));
+        
+        // Clear previous errors
+        if (name === 'password') {
+            const passwordErrors = validatePassword(value);
+            setPasswordError(passwordErrors.length > 0 ? passwordErrors.join('. ') : '');
+        }
+        
+        if (name === 'email') {
+            const emailErrors = validateEmail(value);
+            setEmailError(emailErrors.length > 0 ? emailErrors.join('. ') : '');
+        }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setPasswordError('');
+        setEmailError('');
         setIsSubmitting(true);
 
         // Validate passwords match
@@ -48,6 +96,22 @@ const SignupPage = () => {
                 setIsSubmitting(false);
                 return;
             }
+        }
+        
+        // Validate password complexity
+        const passwordErrors = validatePassword(formData.password);
+        if (passwordErrors.length > 0) {
+            setPasswordError(passwordErrors.join('. '));
+            setIsSubmitting(false);
+            return;
+        }
+        
+        // Validate email format
+        const emailErrors = validateEmail(formData.email);
+        if (emailErrors.length > 0) {
+            setEmailError(emailErrors.join('. '));
+            setIsSubmitting(false);
+            return;
         }
 
         const payload = {
@@ -94,7 +158,16 @@ const SignupPage = () => {
             console.log('Response data:', data);
 
             if (!response.ok) {
-                throw new Error(data.error || 'Registration failed');
+                // Check if the error is related to email duplication
+                if (data.error && data.error.toLowerCase().includes('email is already registered')) {
+                    setEmailError(data.error);
+                    throw new Error(data.error);
+                } else if (data.error && data.error.toLowerCase().includes('password')) {
+                    setPasswordError(data.error);
+                    throw new Error(data.error);
+                } else {
+                    throw new Error(data.error || 'Registration failed');
+                }
             }
 
             // Store the token and user data
@@ -123,7 +196,30 @@ if (data.position === 'Admin') {
                 name: err.name,
                 stack: err.stack
             });
-            setError(err.message || 'Failed to register. Please try again later.');
+            
+            // Check if the error is about email already being registered
+            if (err.message && err.message.toLowerCase().includes('email is already registered')) {
+                setEmailError('This email is already registered. Please use a different email or login.');
+            } else if (err.message && err.message.toLowerCase().includes('email')) {
+                setEmailError(err.message);
+            } else {
+                // Try to parse the error response if it's in JSON format
+                try {
+                    if (err.response && err.response.json) {
+                        err.response.json().then(errorData => {
+                            if (errorData.error && errorData.error.toLowerCase().includes('email')) {
+                                setEmailError(errorData.error);
+                            } else {
+                                setError(errorData.error || 'Failed to register. Please try again later.');
+                            }
+                        });
+                    } else {
+                        setError(err.message || 'Failed to register. Please try again later.');
+                    }
+                } catch (jsonError) {
+                    setError(err.message || 'Failed to register. Please try again later.');
+                }
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -188,7 +284,13 @@ if (data.position === 'Admin') {
                                 onChange={handleChange}
                                 placeholder="john@example.com"
                                 required
+                                className={emailError ? "input-error" : ""}
                             />
+                            {emailError && (
+                                <div className="validation-error" style={{ color: 'red', fontSize: '0.8rem', marginTop: '5px' }}>
+                                    {emailError}
+                                </div>
+                            )}
                         </div>
 
                         <div className="form-group">
@@ -243,7 +345,18 @@ if (data.position === 'Admin') {
                                 onChange={handleChange}
                                 placeholder="••••••••"
                                 required
+                                className={passwordError ? "input-error" : ""}
                             />
+                            {passwordError && (
+                                <div className="validation-error" style={{ color: 'red', fontSize: '0.8rem', marginTop: '5px' }}>
+                                    {passwordError}
+                                </div>
+                            )}
+                            {!passwordError && formData.password && (
+                                <div className="password-requirements" style={{ color: 'green', fontSize: '0.8rem', marginTop: '5px' }}>
+                                    Password meets all requirements
+                                </div>
+                            )}
                         </div>
 
                         <div className="form-group">
@@ -255,7 +368,13 @@ if (data.position === 'Admin') {
                                 onChange={handleChange}
                                 placeholder="••••••••"
                                 required
+                                className={formData.password !== formData.retypePassword && formData.retypePassword ? "input-error" : ""}
                             />
+                            {formData.password !== formData.retypePassword && formData.retypePassword && (
+                                <div className="validation-error" style={{ color: 'red', fontSize: '0.8rem', marginTop: '5px' }}>
+                                    Passwords don't match
+                                </div>
+                            )}
                         </div>
 
                         <button className="button" type="submit" disabled={isSubmitting}>

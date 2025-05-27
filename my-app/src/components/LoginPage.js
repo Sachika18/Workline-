@@ -100,7 +100,7 @@ if (data.position === 'Admin') {
         <div className="login-box">
           <h1 className="welcome-title">Welcome Back!</h1>
           <p className="welcome-text">
-            Simplify your workflow and boost your productivity with <strong>Tuga's App</strong>.
+            Simplify your workflow and boost your productivity with <strong>WorkLine</strong>.
           </p>
 
           <form onSubmit={handleLogin} className="login-form">
@@ -146,13 +146,7 @@ if (data.position === 'Admin') {
             </button>
           </form>
 
-          <div className="or-divider">or continue with</div>
-
-          <div className="social-login">
-            <button className="icon-button">G</button>
-            <button className="icon-button">A</button>
-            <button className="icon-button">F</button>
-          </div>
+          
 
           <p className="register-text">
             Not a member? <Link to="/signup">Register now</Link>
@@ -164,7 +158,7 @@ if (data.position === 'Admin') {
         <div className="illustration-box">
           <img src={illustration} alt="Illustration" className="illustration-img" />
           <p className="illustration-text">
-            Make your work easier and organized with <strong>Tuga's App</strong>.
+            Make your work easier and organized with <strong>WorkLine</strong>.
           </p>
         </div>
       </div>

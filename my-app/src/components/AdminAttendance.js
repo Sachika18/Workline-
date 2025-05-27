@@ -4,6 +4,7 @@ import './AdminAttendance.css';
 import defaultAvatar from '../assets/avatar.png';
 import EmployeeService from './services/EmployeeService';
 import { FiCalendar, FiClock, FiSearch, FiFilter, FiDownload, FiRefreshCw, FiUser, FiUsers, FiCheckCircle, FiXCircle } from 'react-icons/fi';
+import AdminNavbar from './AdminNavbar';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 
 const AdminAttendance = () => {
@@ -645,7 +646,9 @@ const AdminAttendance = () => {
   }
 
   return (
-    <div className="admin-attendance-container">
+    <div>
+      <AdminNavbar onSidebarToggle={() => {}} />
+      <div className="admin-attendance-container">
       <header className="admin-attendance-header">
         <div className="header-left">
           <h1>Attendance Management</h1>
@@ -1303,6 +1306,7 @@ const AdminAttendance = () => {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 };

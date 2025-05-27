@@ -26,7 +26,7 @@ public class AuthServiceImpl implements AuthService {
     public User register(User user) {
         // Check if user with this email already exists
         if (userRepository.existsByEmail(user.getEmail())) {
-            throw new IllegalArgumentException("Email is already registered");
+            throw new IllegalArgumentException("Email is already registered. Please use a different email address.");
         }
 
         // Validate that firstName and lastName are provided
@@ -36,6 +36,11 @@ public class AuthServiceImpl implements AuthService {
         
         if (user.getLastName() == null || user.getLastName().trim().isEmpty()) {
             throw new IllegalArgumentException("Last name is required");
+        }
+        
+        // Validate password (as a backup to frontend validation)
+        if (user.getPassword() == null || user.getPassword().trim().length() < 8) {
+            throw new IllegalArgumentException("Password must be at least 8 characters long");
         }
 
         // Encode password before saving

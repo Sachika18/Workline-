@@ -1,8 +1,11 @@
+
+
 import React, { useState, useEffect } from 'react';
 import fetchApi from '../utils/fetchApi';
 import { mockUsers, mockTasks, createMockTask } from '../utils/mockData';
 import { fixTaskStatuses, clearAllTaskData } from '../utils/taskStatusFix';
 import './Admintask.css';
+import AdminNavbar from './AdminNavbar';
 
 const AdminTaskPage = () => {
   const [users, setUsers] = useState([]);
@@ -786,7 +789,9 @@ const AdminTaskPage = () => {
   if (loading) return <div className="loading">Loading...</div>;
 
   return (
-    <div className="admin-task-container">
+    <div>
+      <AdminNavbar />
+      <div className="admin-task-container">
       <div className="admin-header">
         <h1>Task Management</h1>
         <div className="admin-actions">
@@ -986,6 +991,7 @@ const AdminTaskPage = () => {
           </table>
         )}
       </div>
+    </div>
     </div>
   );
 };

@@ -132,6 +132,28 @@ select.department-select:focus {
     box-shadow: 0 0 0 4px rgba(153, 56, 153, 0.15);
 }
 
+/* Error styling for inputs */
+.input-error {
+    border: 2px solid #ff3860 !important;
+    background-color: #fff5f7 !important;
+}
+
+.input-error:focus {
+    box-shadow: 0 0 0 4px rgba(255, 56, 96, 0.15) !important;
+}
+
+.validation-error {
+    color: #ff3860;
+    font-size: 0.8rem;
+    margin-top: 5px;
+}
+
+.password-requirements {
+    color: #00c853;
+    font-size: 0.8rem;
+    margin-top: 5px;
+}
+
 select.department-select {
     appearance: none;
     background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23993899' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
